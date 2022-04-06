@@ -92,6 +92,8 @@ if (_options.AutomaticCapture)
         parent.AppendChild(element);
 
         handled = true;
+
+        return;
     }
     else
     {
