@@ -21,6 +21,10 @@ namespace SyntaxSearcher.Generators
             {"Token", "ValueText" }
         }.ToImmutableDictionary();
 
+        private static readonly ImmutableHashSet<string> _supportAutoCompare = ImmutableArray.Create(
+            nameof(IdentifierNameSyntax),
+            nameof(MemberAccessExpressionSyntax)).ToImmutableHashSet();
+
         public void Execute(GeneratorExecutionContext context)
         {
             var entryType = context.Compilation.GetTypeByMetadataName(typeof(CSharpSyntaxWalker).FullName);
@@ -33,6 +37,7 @@ namespace SyntaxSearcher.Generators
 
             text.AppendLine("using System;");
             text.AppendLine("using System.Linq;");
+            text.AppendLine("using System.Collections.Generic;");
             text.AppendLine("using System.Xml;");
             text.AppendLine("using Microsoft.CodeAnalysis;");
             text.AppendLine("using Microsoft.CodeAnalysis.CSharp;");
@@ -51,22 +56,60 @@ namespace SyntaxSearcher.Generators
                 var parameterType = method.Parameters[0].Type;
                 bool started = false;
 
+                static void createHeaderIfNeeded(StringBuilder builder, IMethodSymbol m, ITypeSymbol type, ref bool start)
+                {
+                    if (!start)
+                    {
+                        builder.AppendLine($"public override void {m.Name}({type.Name} node)");
+                        builder.AppendLine($"{{");
+
+                        start = true;
+                    }
+                    else
+                    {
+                        builder.AppendLine();
+                    }
+                }
+
+                if (_supportAutoCompare.Contains(parameterType.Name))
+                {
+                    createHeaderIfNeeded(text, method, parameterType, ref started);
+                    text.AppendLine(@"
+bool handled = false;
+
+if (_options.AutomaticCapture)
+{
+    if (TryGetCaptured(node, out string captureKey))
+    {
+        var element = Document.CreateElement(""MatchCapture"");
+        var name = Document.CreateAttribute(""Name"");
+        name.Value = captureKey;
+        element.Attributes.SetNamedItem(name);
+
+        var parent = _current.ParentNode;
+
+        parent.RemoveChild(_current);
+        parent.AppendChild(element);
+
+        handled = true;
+    }
+    else
+    {
+        _staged.Add((node, _current));
+    }
+}
+
+if (!handled) 
+{
+");
+                }
+
                 foreach (var kvp in TypeProperties)
                 {
                     var property = parameterType.GetAllMembers(kvp.Key).OfType<IPropertySymbol>().FirstOrDefault();
                     if (property != null && (kvp.Value is null || property.Type.GetAllMembers(kvp.Value).Any()))
                     {
-                        if (!started)
-                        {
-                            text.AppendLine($"public override void {method.Name}({parameterType.Name} node)");
-                            text.AppendLine($"{{");
-
-                            started = true;
-                        }
-                        else
-                        {
-                            text.AppendLine();
-                        }
+                        createHeaderIfNeeded(text, method, parameterType, ref started);
 
                         text.AppendLine($"if (_options.{kvp.Key}s)");
                         text.AppendLine($"{{");
@@ -90,6 +133,12 @@ namespace SyntaxSearcher.Generators
                         text.AppendLine($"}}");
                     }
                 }
+
+                if (_supportAutoCompare.Contains(parameterType.Name))
+                {
+                    text.AppendLine("}");
+                }
+
 
                 if (started)
                 {

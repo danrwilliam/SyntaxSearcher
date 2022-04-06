@@ -30,5 +30,17 @@ namespace SyntaxSearch.Builder
         /// Visit syntax tokens in addition to nodes
         /// </summary>
         public bool Tokens { get; set; } = false;
+
+        /// <summary>
+        /// Automatically introduce MatchCapture for identical nodes
+        /// </summary>
+        public bool AutomaticCapture { get; set; } = false;
+
+
+        /// <summary>
+        /// When used with <see cref="AutomaticCapture"/>, then use Anything
+        /// matcher for captured items.
+        /// </summary>
+        public bool UseAnythingForAutomaticCapture { get; set; } = false;
     }
 }
