@@ -35,8 +35,8 @@ namespace SyntaxSearch.Builder
 
         private readonly TreeBuilderOptions _options;
 
-        private List<(SyntaxNode, string)> _captured = new List<(SyntaxNode, string)>();
-        private List<(SyntaxNode, XmlElement)> _staged = new List<(SyntaxNode, XmlElement)>();
+        private readonly List<(SyntaxNode, string)> _captured = new List<(SyntaxNode, string)>();
+        private readonly List<(SyntaxNode, XmlElement)> _staged = new List<(SyntaxNode, XmlElement)>();
 
         internal TreeWalker(TreeBuilderOptions options)
             : base(options.Tokens ? SyntaxWalkerDepth.Token : SyntaxWalkerDepth.Node)
@@ -45,6 +45,13 @@ namespace SyntaxSearch.Builder
 
             Document = new XmlDocument();
             _current = Document.CreateElement("SyntaxSearchDefinition");
+
+            if (_options.NamedChildren)
+            {
+                var attr = Document.CreateAttribute("Format");
+                attr.Value = "Explicit";
+                _current.Attributes.SetNamedItem(attr);
+            }
 
             Document.AppendChild(_current);
         }

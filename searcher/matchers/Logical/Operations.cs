@@ -78,9 +78,9 @@ namespace SyntaxSearch.Matchers
             foreach (var extraChild in Children)
             {
                 var nestedSearcher = new Searcher(extraChild, new CaptureStore());
-                foreach (SyntaxNode extraMatch in nestedSearcher.Search(searchNode))
+                foreach (var result in nestedSearcher.Search(searchNode))
                 {
-                    Store.AdditionalCaptures.Add(extraMatch);
+                    Store.AdditionalCaptures.Add(result.Node);
                 }
             }
 

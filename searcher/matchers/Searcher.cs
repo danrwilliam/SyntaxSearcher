@@ -41,8 +41,8 @@ namespace SyntaxSearch
         /// <summary>
         /// </summary>
         /// <param name="node">root node</param>
-        /// <returns>any node matching the match criteria</returns>
-        public IEnumerable<SyntaxNode> Search(SyntaxNode node)
+        /// <returns>result object with the matching node, additional node, and any captured nodes</returns>
+        public IEnumerable<SearchResult> Search(SyntaxNode node)
         {
             foreach (var dNode in node.DescendantNodes(c => true))
             {
@@ -50,26 +50,37 @@ namespace SyntaxSearch
 
                 if (_match.IsMatch(dNode))
                 {
-                    yield return dNode;
+                    var result = new SearchResult(dNode,
+                        Store.AdditionalCaptures,
+                        Store.CapturedGroups);
+
+                    yield return result;
                 }
             }
         }
+    }
+
+    public class SearchResult
+    {
+        /// <summary>
+        /// Node that matches the search criteria
+        /// </summary>
+        public SyntaxNode Node { get; private set; }
 
         /// <summary>
+        /// Additional nodes that were found by the search criteria
         /// </summary>
-        /// <param name="node">root node</param>
-        /// <returns>any node matching the match criteria and any additional nodes</returns>
-        public IEnumerable<(SyntaxNode, SyntaxNode[])> SearchEx(SyntaxNode node)
-        {
-            foreach (var dNode in node.DescendantNodes(c => true))
-            {
-                Store.Reset();
+        public SyntaxNode[] AdditionalNodes { get; private set; }
 
-                if (_match.IsMatch(dNode))
-                {
-                    yield return (dNode, Store.AdditionalCaptures.ToArray());
-                }
-            }
+        public Dictionary<string, SyntaxNode> Captured { get; private set; }
+
+        public SearchResult(SyntaxNode node,
+                            IEnumerable<SyntaxNode> additional,
+                            Dictionary<string, SyntaxNode> captures)
+        {
+            Node = node;
+            AdditionalNodes = additional.Any() ? additional.ToArray() : Array.Empty<SyntaxNode>();
+            Captured = new Dictionary<string, SyntaxNode>(captures);
         }
     }
 }

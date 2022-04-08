@@ -32,15 +32,20 @@ namespace SyntaxSearch.Builder
         public bool Tokens { get; set; } = false;
 
         /// <summary>
-        /// Automatically introduce MatchCapture for identical nodes
+        /// Automatically introduce MatchCapture when encountering an identical node
         /// </summary>
         public bool AutomaticCapture { get; set; } = false;
-
 
         /// <summary>
         /// When used with <see cref="AutomaticCapture"/>, then use Anything
         /// matcher for captured items.
         /// </summary>
         public bool UseAnythingForAutomaticCapture { get; set; } = false;
+
+        /// <summary>
+        /// Xml will create a named node for each child object
+        /// <para>Currently unused</para>
+        /// </summary>
+        public bool NamedChildren { get => false; set { } }
     }
 }

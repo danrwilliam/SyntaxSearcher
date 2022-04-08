@@ -39,5 +39,16 @@ namespace SyntaxSearcher.Generators
             var root = tree.GetRoot().NormalizeWhitespace();
             return root.ToFullString();
         }
+
+        public static bool IsSubclassOf(this ITypeSymbol typeSymbol, ITypeSymbol candidateBase)
+        {
+            if (typeSymbol is null)
+                return false;
+
+            if (SymbolEqualityComparer.Default.Equals(typeSymbol, candidateBase))
+                return true;
+
+            return typeSymbol.BaseType.IsSubclassOf(candidateBase);
+        }
     }
 }

@@ -13,7 +13,7 @@ namespace SyntaxSearcher.Generators
     [Generator]
     public class TreeBuilderGenerator : ISourceGenerator
     {
-        public static ImmutableDictionary<string, string> TypeProperties = new Dictionary<string, string>()
+        public static ImmutableDictionary<string, string> TokenProperties = new Dictionary<string, string>()
         {
             {"Identifier", "Text" },
             {"Keyword" , "Text" },
@@ -23,7 +23,8 @@ namespace SyntaxSearcher.Generators
 
         private static readonly ImmutableHashSet<string> _supportAutoCompare = ImmutableArray.Create(
             nameof(IdentifierNameSyntax),
-            nameof(MemberAccessExpressionSyntax)).ToImmutableHashSet();
+            nameof(MemberAccessExpressionSyntax)
+        ).ToImmutableHashSet();
 
         public void Execute(GeneratorExecutionContext context)
         {
@@ -32,6 +33,8 @@ namespace SyntaxSearcher.Generators
             if (entryType is null) return;
 
             var methods = entryType.GetAllMembers().OfType<IMethodSymbol>().Where(m => m.IsVirtual);
+
+            var syntaxNodeType = context.Compilation.GetTypeByMetadataName(typeof(SyntaxNode).FullName);
 
             StringBuilder text = new();
 
@@ -56,6 +59,12 @@ namespace SyntaxSearcher.Generators
                 var parameterType = method.Parameters[0].Type;
                 bool started = false;
 
+                var namedProperties = parameterType.GetMembers()
+                                                   .OfType<IPropertySymbol>()
+                                                   .Where(f => f.Type.IsSubclassOf(syntaxNodeType))
+                                                   .Where(f => f.Name != "Parent")
+                                                   .ToArray();
+
                 static void createHeaderIfNeeded(StringBuilder builder, IMethodSymbol m, ITypeSymbol type, ref bool start)
                 {
                     if (!start)
@@ -69,6 +78,40 @@ namespace SyntaxSearcher.Generators
                     {
                         builder.AppendLine();
                     }
+                }
+
+                if (namedProperties.Any())
+                {
+                    createHeaderIfNeeded(text, method, parameterType, ref started);
+
+
+                    text.AppendLine(@"
+if (_options.NamedChildren)
+{
+");
+
+                    foreach (var property in namedProperties)
+                    {
+                        text.AppendLine($@"
+
+if (node.{property.Name} != null)
+{{
+    var parent = _current;
+    var n = Document.CreateElement(""{property.Name}"");
+    parent.AppendChild(n);
+
+    _current = n;
+
+    Visit(node.{property.Name});
+
+    _current = parent;
+}}
+");
+                    }
+
+                    text.AppendLine(@"
+    return;
+}");
                 }
 
                 if (_supportAutoCompare.Contains(parameterType.Name))
@@ -106,7 +149,7 @@ if (!handled)
 ");
                 }
 
-                foreach (var kvp in TypeProperties)
+                foreach (var kvp in TokenProperties)
                 {
                     var property = parameterType.GetAllMembers(kvp.Key).OfType<IPropertySymbol>().FirstOrDefault();
                     if (property != null && (kvp.Value is null || property.Type.GetAllMembers(kvp.Value).Any()))
