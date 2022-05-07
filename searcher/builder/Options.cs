@@ -46,6 +46,6 @@ namespace SyntaxSearch.Builder
         /// Xml will create a named node for each child object
         /// <para>Currently unused</para>
         /// </summary>
-        public bool NamedChildren { get => false; set { } }
+        public bool NamedChildren { get; set; } = false;
     }
 }

@@ -13,7 +13,8 @@ namespace SyntaxSearch
     /// </summary>
     public class Searcher
     {
-        private INodeMatcher _match;
+        private readonly INodeMatcher _match;
+
         public CaptureStore Store { get; protected set; }
 
         public INodeMatcher Matcher => _match;
@@ -44,16 +45,22 @@ namespace SyntaxSearch
         /// <returns>result object with the matching node, additional node, and any captured nodes</returns>
         public IEnumerable<SearchResult> Search(SyntaxNode node)
         {
+            Store.Reset();
+
+            // check passed in node first
+            if (_match.IsMatch(node))
+            {
+                var result = new SearchResult(node, Store.AdditionalCaptures, Store.CapturedGroups);
+                yield return result;
+            }
+
             foreach (var dNode in node.DescendantNodes(c => true))
             {
                 Store.Reset();
 
                 if (_match.IsMatch(dNode))
                 {
-                    var result = new SearchResult(dNode,
-                        Store.AdditionalCaptures,
-                        Store.CapturedGroups);
-
+                    var result = new SearchResult(dNode, Store.AdditionalCaptures, Store.CapturedGroups);
                     yield return result;
                 }
             }
@@ -72,8 +79,17 @@ namespace SyntaxSearch
         /// </summary>
         public SyntaxNode[] AdditionalNodes { get; private set; }
 
+        /// <summary>
+        /// Named capture nodes
+        /// </summary>
         public Dictionary<string, SyntaxNode> Captured { get; private set; }
 
+        /// <summary>
+        /// Create a new SearchResult object
+        /// </summary>
+        /// <param name="node"></param>
+        /// <param name="additional">this argument is cloned with a shallow copy</param>
+        /// <param name="captures">this argument is cloned with a shallow copy</param>
         public SearchResult(SyntaxNode node,
                             IEnumerable<SyntaxNode> additional,
                             Dictionary<string, SyntaxNode> captures)

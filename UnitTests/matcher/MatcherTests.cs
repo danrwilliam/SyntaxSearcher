@@ -10,27 +10,37 @@ namespace SyntaxSearchUnitTests.Matcher
     [TestFixture]
     public class MatcherTests
     {
+        private SyntaxSearch.Parser.SearchFileParser _parser;
+
+        [SetUp]
+        public void Setup()
+        {
+            _parser = new SyntaxSearch.Parser.SearchFileParser();
+        }
+
+
         [Test]
         public void TestEmpty()
         {
-            Assert.Throws<ArgumentException>(() => SyntaxSearch.Parser.SearchFileParser.ParseFromString("<SyntaxSearchDefinition></SyntaxSearchDefinition>"));
+            Assert.Throws<ArgumentException>(() => _parser.ParseFromString("<SyntaxSearchDefinition></SyntaxSearchDefinition>"));
         }
 
         [Test]
         public void TestIdentifier()
         {
-            var searcher = SyntaxSearch.Parser.SearchFileParser.ParseFromString("<SyntaxSearchDefinition><IdentifierName /></SyntaxSearchDefinition>");
-            var expr = SyntaxFactory.ParseExpression(@"
+            var searcher = _parser.ParseFromString("<SyntaxSearchDefinition><IdentifierName /></SyntaxSearchDefinition>");
+            var expr = SyntaxFactory.ParseCompilationUnit(@"
 public void Method()
 {
     int a = 3;
     float f = 4f;
+
+    a *= f;
 }");
 
             var found = searcher.Search(expr);
 
-            Assert.That(found.Count(), Is.EqualTo(3));
-
+            Assert.That(found.Count(), Is.EqualTo(2));
         }
     }
 }

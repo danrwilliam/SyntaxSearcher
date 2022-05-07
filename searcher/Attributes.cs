@@ -8,4 +8,9 @@ namespace SyntaxSearch.Matchers
     {
         public string Name { get; }
     }
+
+    public sealed class OnlyOneChildAttribute : Attribute
+    {
+
+    }
 }

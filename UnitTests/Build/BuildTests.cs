@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using System.Xml;
 using Microsoft.CodeAnalysis.CSharp;
 using NUnit.Framework;
@@ -10,11 +11,13 @@ namespace SyntaxSearchUnitTests.Build
     public class BuildTests
     {
         private SyntaxSearch.Builder.XmlTreeBuilder _builder;
+        private SyntaxSearch.Parser.SearchFileParser _parser;
 
         [SetUp]
         public void Setup()
         {
             _builder = new SyntaxSearch.Builder.XmlTreeBuilder();
+            _parser = new SyntaxSearch.Parser.SearchFileParser();
         }
 
         public string GetString()
@@ -41,6 +44,7 @@ namespace SyntaxSearchUnitTests.Build
             string data = reader.ReadToEnd();
 
             reader.Dispose();
+            memStream.Dispose();
 
             return data;
         }
@@ -50,63 +54,48 @@ namespace SyntaxSearchUnitTests.Build
             return $"<SyntaxSearchDefinition>{inner}</SyntaxSearchDefinition>";
         }
 
-        [Test]
-        public void TestDeclarationNothing()
+        [TestCase("int a;", "int b;", "List<int> a = new();")]
+        [TestCase("List<int> a = new();", "List<int> n = new();", "List<int> a = new List<int>();")]
+        public void StatementTest(string statement, string alsoMatch, string wontMatch)
         {
-            var node = SyntaxFactory.ParseStatement("int a;");
-            _builder.Build(node, new SyntaxSearch.Builder.TreeBuilderOptions()
+            var statementExpr = SyntaxFactory.ParseStatement(statement);
+
+            var options = new SyntaxSearch.Builder.TreeBuilderOptions()
             {
                 Modifiers = false,
                 Identifiers = false,
                 Keywords = false,
                 Tokens = false
-            });
+            };
 
+            _builder.Build(statementExpr, options);
             string data = GetString();
 
-            Assert.That(
-                data,
-                Is.EqualTo(BuildXml(@"<LocalDeclarationStatement><VariableDeclaration><PredefinedType /><VariableDeclarator /></VariableDeclaration></LocalDeclarationStatement>")));
+            var searcher = _parser.ParseFromString(data);
+
+            Assert.That(searcher.Search(statementExpr).Count(), Is.EqualTo(1), $"\"{statementExpr}\" should be found");
+            Assert.That(searcher.Search(SyntaxFactory.ParseStatement(alsoMatch)).Count(), Is.EqualTo(1), $"\"{alsoMatch}\" should also be found");
+            Assert.That(searcher.Search(SyntaxFactory.ParseStatement(wontMatch)).Count(), Is.EqualTo(0), $"\"{wontMatch}\" should not be found");
         }
 
         [Test]
-        public void TestDeclarationWithIdentifiers()
+        public void TestAutoCapture()
         {
-            var node = SyntaxFactory.ParseStatement("int a;");
+            var node = SyntaxFactory.ParseStatement(@"
+if (a != null)
+    a();
+");
             _builder.Build(node, new SyntaxSearch.Builder.TreeBuilderOptions()
             {
-                Modifiers = false,
-                Identifiers = true,
-                Keywords = false,
-                Tokens = false
+                AutomaticCapture = true,
+                UseAnythingForAutomaticCapture = true
             });
 
             string data = GetString();
 
             Assert.That(
                 data,
-                Is.EqualTo(BuildXml(@"<LocalDeclarationStatement><VariableDeclaration><PredefinedType /><VariableDeclarator Identifier=""a"" /></VariableDeclaration></LocalDeclarationStatement>")));
-
-        }
-
-        [Test]
-        public void TestDeclarationWithAll()
-        {
-            var node = SyntaxFactory.ParseStatement("int a;");
-            _builder.Build(node, new SyntaxSearch.Builder.TreeBuilderOptions()
-            {
-                Modifiers = true,
-                Identifiers = true,
-                Keywords = true,
-                Tokens = true
-            });
-
-            string data = GetString();
-
-            Assert.That(
-                data,
-                Is.EqualTo(BuildXml(@"<LocalDeclarationStatement><VariableDeclaration><PredefinedType Keyword=""int""><IntKeyword /></PredefinedType><VariableDeclarator Identifier=""a""><IdentifierToken /></VariableDeclarator></VariableDeclaration><SemicolonToken /></LocalDeclarationStatement>")));
-
+                Is.EqualTo(BuildXml(@"<IfStatement><NotEqualsExpression><Anything Name=""capture_0"" /><NullLiteralExpression /></NotEqualsExpression><ExpressionStatement><InvocationExpression><MatchCapture Name=""capture_0"" /><ArgumentList /></InvocationExpression></ExpressionStatement></IfStatement>")));
         }
     }
 }

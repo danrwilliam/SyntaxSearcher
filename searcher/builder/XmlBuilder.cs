@@ -114,11 +114,6 @@ namespace SyntaxSearch.Builder
 
                         var parent = element.ParentNode;
 
-                        foreach (XmlNode c in element.ChildNodes)
-                        {
-                            replaced.AppendChild(c);
-                        }
-
                         List<XmlNode> nodes = new List<XmlNode>();
 
                         foreach (XmlNode child in parent.ChildNodes)

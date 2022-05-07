@@ -55,10 +55,19 @@ namespace SyntaxSearch.Matchers
         }
     }
 
+    /// <summary>
+    /// Allows for finding and returning additional syntax nodes
+    /// </summary>
     public partial class ThenMatcher : BaseMatcher
     {
         public override NodeAccept Accepts { get => NodeAccept.PostNode; set { } }
+
+        /// <summary>
+        /// Specifies what ancestor to go search within
+        /// </summary>
         private SyntaxKind _scopeKind;
+
+        private bool _require = false;
 
         public override bool IsMatch(SyntaxNode node)
         {
@@ -84,9 +93,15 @@ namespace SyntaxSearch.Matchers
                 }
             }
 
-            return true;
+            if (_require)
+            {
+                return Store.AdditionalCaptures.Any();
+            }
+            else
+            {
+                return true;
+            }
         }
-
     }
 
     /// <summary>
@@ -198,6 +213,7 @@ namespace SyntaxSearch.Matchers
     /// <summary>
     /// Matches when node contains something that matches this
     /// </summary>
+    [OnlyOneChild]
     public class ContainsMatcher : LogicalMatcher
     {
         public override bool IsMatch(SyntaxNode node)

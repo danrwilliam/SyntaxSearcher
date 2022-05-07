@@ -19,6 +19,7 @@ namespace SyntaxSearch.Matchers
             _captureName = captureName;
             _matchName = matchName;
         }
+
         public override bool IsMatch(SyntaxNode node)
         {
             if (!IsNodeMatch(node))
@@ -38,17 +39,9 @@ namespace SyntaxSearch.Matchers
             return node.IsKind(_thisKind);
         }
 
-        protected bool DoChildrenMatch(SyntaxNode node)
+        protected virtual bool DoChildNodesMatch(SyntaxNode node)
         {
-            // Run any checkers that operate on the current node
-            foreach (var check in Children.Where(c => c.Accepts == NodeAccept.Node))
-            {
-                if (!check.IsMatch(node))
-                    return false;
-            }
-
             var childNodeEnumerator = node.ChildNodes().GetEnumerator();
-            
             childNodeEnumerator.MoveNext();
 
             // now run checkers for this node's children
@@ -60,6 +53,23 @@ namespace SyntaxSearch.Matchers
                     return false;
 
                 childNodeEnumerator.MoveNext();
+            }
+
+            return true;
+        }
+
+        protected virtual bool DoChildrenMatch(SyntaxNode node)
+        {
+            // Run any checkers that operate on the current node
+            foreach (var check in Children.Where(c => c.Accepts == NodeAccept.Node))
+            {
+                if (!check.IsMatch(node))
+                    return false;
+            }
+
+            if (!DoChildNodesMatch(node))
+            {
+                return false;
             }
 
             // run any-post condition checkers
@@ -76,5 +86,14 @@ namespace SyntaxSearch.Matchers
 
             return true;
         }
+    }
+
+    public abstract class ExplicitNodeMatcher : NodeMatcher
+    {
+        protected ExplicitNodeMatcher(SyntaxKind kind, string captureName, string matchName) : base(kind, captureName, matchName)
+        {
+        }
+
+        protected abstract override bool DoChildNodesMatch(SyntaxNode node);
     }
 }

@@ -23,7 +23,8 @@ namespace SyntaxSearcher.Generators
 
         private static readonly ImmutableHashSet<string> _supportAutoCompare = ImmutableArray.Create(
             nameof(IdentifierNameSyntax),
-            nameof(MemberAccessExpressionSyntax)
+            nameof(MemberAccessExpressionSyntax),
+            nameof(GenericNameSyntax)
         ).ToImmutableHashSet();
 
         public void Execute(GeneratorExecutionContext context)
@@ -32,7 +33,7 @@ namespace SyntaxSearcher.Generators
 
             if (entryType is null) return;
 
-            var methods = entryType.GetAllMembers().OfType<IMethodSymbol>().Where(m => m.IsVirtual);
+            var methods = entryType.GetAllMembers().OfType<IMethodSymbol>().Where(m => m.IsVirtual).ToArray();
 
             var syntaxNodeType = context.Compilation.GetTypeByMetadataName(typeof(SyntaxNode).FullName);
 
@@ -58,12 +59,7 @@ namespace SyntaxSearcher.Generators
 
                 var parameterType = method.Parameters[0].Type;
                 bool started = false;
-
-                var namedProperties = parameterType.GetMembers()
-                                                   .OfType<IPropertySymbol>()
-                                                   .Where(f => f.Type.IsSubclassOf(syntaxNodeType))
-                                                   .Where(f => f.Name != "Parent")
-                                                   .ToArray();
+                (IPropertySymbol prop, bool isList)[] namedProperties = Helpers.GetNamedProperties(parameterType, syntaxNodeType);
 
                 static void createHeaderIfNeeded(StringBuilder builder, IMethodSymbol m, ITypeSymbol type, ref bool start)
                 {
@@ -90,9 +86,32 @@ if (_options.NamedChildren)
 {
 ");
 
-                    foreach (var property in namedProperties)
+                    foreach ((var property, var isList) in namedProperties)
                     {
-                        text.AppendLine($@"
+                        if (isList)
+                        {
+                            text.AppendLine($@"
+
+if (node.{property.Name} != default)
+{{
+    var parent = _current;
+    var n = Document.CreateElement(""{property.Name}"");
+    parent.AppendChild(n);
+
+    _current = n;
+
+    foreach (var listNode in node.{property.Name})
+    {{
+        Visit(listNode);
+    }}
+
+    _current = parent;
+}}
+");
+                        }
+                        else
+                        {
+                            text.AppendLine($@"
 
 if (node.{property.Name} != null)
 {{
@@ -107,6 +126,7 @@ if (node.{property.Name} != null)
     _current = parent;
 }}
 ");
+                        }
                     }
 
                     text.AppendLine(@"
