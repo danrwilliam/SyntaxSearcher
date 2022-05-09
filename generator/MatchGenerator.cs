@@ -724,7 +724,13 @@ namespace SyntaxSearch.Matchers
 
             foreach (var i in fields)
             {
-                builder.AppendLine($"{i.Item4} = element?.Attributes[\"{i.Item2}\"]?.Value;");
+                if (i.Item1 == "string[]")
+                {
+                }
+                else
+                {
+                    builder.AppendLine($"{i.Item4} = element?.Attributes[\"{i.Item2}\"]?.Value;");
+                }
             }
 
             builder.AppendLine("}");
@@ -925,7 +931,7 @@ namespace SyntaxSearch.Matchers
 
             foreach (var i in fields)
             {
-                if (i.Item4 == "string")
+                if (i.Item1 == "string")
                 {
                     builder.AppendLine($"{i.Item4} = element?.Attributes[\"{i.Item2}\"]?.Value;");
                 }
