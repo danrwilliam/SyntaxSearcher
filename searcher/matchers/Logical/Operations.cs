@@ -168,6 +168,15 @@ namespace SyntaxSearch.Matchers
             {
                 Store.CapturedGroups.Add(_name, node);
             }
+
+            foreach (var child in Children)
+            {
+                if (!child.IsMatch(node))
+                {
+                    return false;
+                }
+            }
+
             return true;
         }
     }
