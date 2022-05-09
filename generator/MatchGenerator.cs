@@ -164,7 +164,7 @@ namespace SyntaxSearch.Parser
 
             INodeMatcher matcher;
 
-            var matchRoot = docRoot.ChildNodes.OfType<XmlNode>().FirstOrDefault();
+            var matchRoot = docRoot.ChildNodes.OfType<XmlElement>().FirstOrDefault();
             if (matchRoot is null)
             {
                 throw new ArgumentException(""empty document"");
@@ -541,6 +541,7 @@ namespace SyntaxSearch.Matchers
             StringBuilder map = new();
 
             var syntaxNodeType = context.Compilation.GetTypeByMetadataName(typeof(SyntaxNode).FullName);
+            var syntaxTokenList = context.Compilation.GetTypeByMetadataName(typeof(SyntaxTokenList).FullName);
 
             Dictionary<INamedTypeSymbol, string> typeToClassMap = new(SymbolEqualityComparer.Default);
             List<(IFieldSymbol, INamedTypeSymbol)> kinds = new();
@@ -574,9 +575,17 @@ namespace SyntaxSearch.Matchers
                     foreach (var kvp in TreeBuilderGenerator.TokenProperties)
                     {
                         var property = associatedType.GetAllMembers(kvp.Key).OfType<IPropertySymbol>().FirstOrDefault();
-                        if (property != null && kvp.Value != null && property.Type.GetAllMembers(kvp.Value).FirstOrDefault() is IPropertySymbol accessType)
+                        if (property != null && property.Type.GetAllMembers(kvp.Value).FirstOrDefault() is IPropertySymbol)
                         {
-                            fields.Add(("string", kvp.Key, kvp.Value, $"_{char.ToLower(kvp.Key[0])}{kvp.Key.Substring(1)}"));
+                            if (SymbolEqualityComparer.Default.Equals(property.Type, syntaxTokenList))
+                            {
+                                fields.Add(("string[]", kvp.Key, "Value", GenerateFieldName(kvp.Key)));
+
+                            }
+                            else
+                            {
+                                fields.Add(("string", kvp.Key, kvp.Value, GenerateFieldName(kvp.Key)));
+                            }
                         }
                     }
 
@@ -602,6 +611,11 @@ namespace SyntaxSearch.Matchers
             context.AddSource($"A.KindTypeMap", map.ToString());
 
             return newTrees;
+        }
+
+        private static string GenerateFieldName(string kvp)
+        {
+            return $"_{char.ToLower(kvp[0])}{kvp.Substring(1)}";
         }
 
         private string BuildClassNoOverrides(ISymbol kind, string className = null, (IPropertySymbol, bool)[] namedProperties = null)
@@ -907,7 +921,30 @@ namespace SyntaxSearch.Matchers
             element?.Attributes[""Name""]?.Value,
             element?.Attributes[""Match""]?.Value)
         {{
-{string.Join(Environment.NewLine, fields.Select(i => $"            {i.Item4} = element?.Attributes[\"{i.Item2}\"]?.Value;"))}
+");
+
+            foreach (var i in fields)
+            {
+                if (i.Item4 == "string")
+                {
+                    builder.AppendLine($"{i.Item4} = element?.Attributes[\"{i.Item2}\"]?.Value;");
+                }
+                else
+                {
+                    string localName = $"{i.Item2.ToLower()}Text";
+
+                    builder.AppendLine(@$"
+                
+                if (element?.Attributes[""{i.Item2}""]?.Value is string {localName} && !string.IsNullOrWhiteSpace({localName}))
+                {{
+                    //string[] tokens = {localName}.Split(""+"", {nameof(StringSplitOptions)}.{nameof(StringSplitOptions.RemoveEmptyEntries)});
+                }}
+
+");
+                }
+            }
+
+            builder.AppendLine($@"
         }}
 
         public {kind.Name}Matcher({className} node) : base(SyntaxKind.{kind.Name}, null, null)
@@ -926,9 +963,16 @@ namespace SyntaxSearch.Matchers
                 return false;
 
             var obj = ({className})node;
+");
 
-{string.Join(string.Empty, fields.Select(makeComparision))}
-            
+            foreach (var f in fields)
+            {
+                if (f.Item1 == "string")
+                    builder.AppendLine(makeComparision(f));
+
+            }
+
+            builder.AppendLine($@"
             return true;
         }}
     }}

@@ -1,5 +1,6 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -55,34 +56,14 @@ namespace SyntaxSearch.Matchers
         }
     }
 
-    /// <summary>
-    /// Allows for finding and returning additional syntax nodes
-    /// </summary>
-    public partial class ThenMatcher : BaseMatcher
+    public abstract class GetExtraNodesMatcher : BaseMatcher
     {
-        public override NodeAccept Accepts { get => NodeAccept.PostNode; set { } }
-
-        /// <summary>
-        /// Specifies what ancestor to go search within
-        /// </summary>
-        private SyntaxKind _scopeKind;
-
-        private bool _require = false;
-
         public override bool IsMatch(SyntaxNode node)
         {
-            SyntaxNode searchNode = node;
+            SyntaxNode searchNode = SearchFrom(node);
+            if (searchNode is null)
+                return false;
 
-            if (_scopeKind != default)
-            {
-                searchNode = node.Ancestors().FirstOrDefault(a => a.IsKind(_scopeKind));
-                if (searchNode is null)
-                    return false;
-            }
-            else
-            {
-                node = node.SyntaxTree.GetRoot();
-            }
 
             foreach (var extraChild in Children)
             {
@@ -93,6 +74,34 @@ namespace SyntaxSearch.Matchers
                 }
             }
 
+            return GetReturnValue();
+        }
+
+        protected abstract bool GetReturnValue();
+
+        protected abstract SyntaxNode SearchFrom(SyntaxNode node);
+    }
+
+    /// <summary>
+    /// Allows for finding and returning additional syntax nodes
+    /// </summary>
+    public partial class ThenMatcher : GetExtraNodesMatcher
+    {
+        public override NodeAccept Accepts { get => NodeAccept.PostNode; set { } }
+
+        /// <summary>
+        /// Specifies what ancestor to go search within
+        /// </summary>
+        protected SyntaxKind _scopeKind;
+
+        /// <summary>
+        /// If true, extra nodes must be found for this node to be returned
+        /// as a match.
+        /// </summary>
+        protected bool _require = false;
+
+        protected override bool GetReturnValue()
+        {
             if (_require)
             {
                 return Store.AdditionalCaptures.Any();
@@ -101,6 +110,22 @@ namespace SyntaxSearch.Matchers
             {
                 return true;
             }
+        }
+
+        protected override SyntaxNode SearchFrom(SyntaxNode node)
+        {
+            SyntaxNode searchNode = node;
+
+            if (_scopeKind != default)
+            {
+                searchNode = node.Ancestors().FirstOrDefault(a => a.IsKind(_scopeKind));
+            }
+            else
+            {
+                searchNode = node.SyntaxTree.GetRoot();
+            }
+
+            return searchNode;
         }
     }
 
