@@ -301,7 +301,6 @@ namespace SyntaxSearch.Matchers
     /// <summary>
     /// Matches when node contains something that matches this
     /// </summary>
-    [OnlyOneChild]
     public class ContainsMatcher : LogicalMatcher
     {
         public override bool IsMatch(SyntaxNode node)
@@ -314,7 +313,13 @@ namespace SyntaxSearch.Matchers
             foreach (var c in node.DescendantNodes(f => true))
             {
                 if (Children[0].IsMatch(c))
-                    return true;
+                {
+                    var other = Children.FirstOrDefault(f => f.Accepts == NodeAccept.PostNode);
+                    if (other is null || other.IsMatch(c))
+                    {
+                        return true;
+                    }
+                }
             }
 
             return false;

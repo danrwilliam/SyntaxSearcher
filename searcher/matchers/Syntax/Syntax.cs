@@ -25,7 +25,7 @@ namespace SyntaxSearch.Matchers
             if (!IsNodeMatch(node))
                 return false;
 
-            if (!string.IsNullOrEmpty(_matchName) 
+            if (!string.IsNullOrEmpty(_matchName)
                 && Store.CapturedGroups.TryGetValue(_matchName, out var compareToNode))
             {
                 return SyntaxFactory.AreEquivalent(compareToNode, node);
@@ -41,18 +41,20 @@ namespace SyntaxSearch.Matchers
 
         protected virtual bool DoChildNodesMatch(SyntaxNode node)
         {
-            var childNodeEnumerator = node.ChildNodes().GetEnumerator();
-            childNodeEnumerator.MoveNext();
+            IEnumerable<SyntaxNode> childNodes = node.ChildNodes();
 
-            // now run checkers for this node's children
-            foreach (var childCheck in Children.Where(c => c.Accepts == NodeAccept.Child))
+            var matchers = Children.Where(c => c.Accepts == NodeAccept.Child);
+
+            // more matchers than child nodes
+            if (matchers.Count() > childNodes.Count())
+                return false;
+
+            var zipped = Enumerable.Zip(matchers, childNodes, (m, c) => new { matcher = m, childNode = c });
+            foreach (var step in zipped)
             {
-                var child = childNodeEnumerator.Current;
-
-                if (!childCheck.IsMatch(child))
+                if (!step.matcher.IsMatch(step.childNode))
                     return false;
 
-                childNodeEnumerator.MoveNext();
             }
 
             return true;

@@ -56,6 +56,7 @@ namespace SyntaxSearchUnitTests.Build
 
         [TestCase("int a;", "int b;", "List<int> a = new();")]
         [TestCase("List<int> a = new();", "List<int> n = new();", "List<int> a = new List<int>();")]
+        [TestCase("a(obj);", "b(test);", "a(extra, num);")]
         public void StatementTest(string statement, string alsoMatch, string wontMatch)
         {
             var statementExpr = SyntaxFactory.ParseStatement(statement);
