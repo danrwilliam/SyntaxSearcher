@@ -152,6 +152,11 @@ namespace SyntaxSearch.Parser
             return ParseInternal(doc);
         }
 
+        public Searcher FromBuilder(SyntaxSearch.Builder.XmlTreeBuilder builder)
+        {
+            return ParseInternal(builder.Document);
+        }
+
         private Searcher ParseInternal(XmlDocument doc)
         {
             var docRoot = doc.SelectSingleNode(_rootTag);

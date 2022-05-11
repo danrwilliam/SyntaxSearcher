@@ -129,6 +129,60 @@ namespace SyntaxSearch.Matchers
         }
     }
 
+    public partial class ReturnMatcher : BaseMatcher
+    {
+        protected SyntaxKind _ancestorKind;
+        public override bool IsMatch(SyntaxNode node)
+        {
+            SyntaxNode searchNode = SearchFrom(node);
+            if (searchNode is null)
+                return false;
+
+            if (Children.Any())
+            {
+                foreach (var extraChild in Children)
+                {
+                    var nestedSearcher = new Searcher(extraChild, new CaptureStore());
+                    foreach (var result in nestedSearcher.Search(searchNode))
+                    {
+                        Store.AdditionalCaptures.Add(result.Node);
+                    }
+                }
+
+                if (Store.AdditionalCaptures.Any())
+                {
+                    Store.Override = Store.AdditionalCaptures.First();
+                    Store.AdditionalCaptures.Clear();
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                Store.Override = searchNode;
+                return true;
+            }
+        }
+        protected SyntaxNode SearchFrom(SyntaxNode node)
+        {
+            SyntaxNode searchNode = node;
+
+            if (_ancestorKind != default)
+            {
+                searchNode = node.Ancestors().FirstOrDefault(a => a.IsKind(_ancestorKind));
+            }
+            else
+            {
+                searchNode = node.SyntaxTree.GetRoot();
+            }
+
+            return searchNode;
+        }
+    }
+
     /// <summary>
     /// Requires node to have children
     /// </summary>

@@ -44,10 +44,13 @@ namespace SyntaxSearch.Matchers
         public Dictionary<string, SyntaxNode> CapturedGroups { get; } = new Dictionary<string, SyntaxNode>();
         public List<SyntaxNode> AdditionalCaptures { get;  } = new List<SyntaxNode>();
 
+        public SyntaxNode Override { get; set; } = default;
+
         public void Reset()
         {
             AdditionalCaptures.Clear();
             CapturedGroups.Clear();
+            Override = default;
         }
     }
 

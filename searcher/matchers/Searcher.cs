@@ -50,7 +50,7 @@ namespace SyntaxSearch
             // check passed in node first
             if (_match.IsMatch(node))
             {
-                var result = new SearchResult(node, Store.AdditionalCaptures, Store.CapturedGroups);
+                var result = new SearchResult(Store.Override ?? node, Store.AdditionalCaptures, Store.CapturedGroups);
                 yield return result;
             }
 
@@ -60,7 +60,7 @@ namespace SyntaxSearch
 
                 if (_match.IsMatch(dNode))
                 {
-                    var result = new SearchResult(dNode, Store.AdditionalCaptures, Store.CapturedGroups);
+                    var result = new SearchResult(Store.Override ?? dNode, Store.AdditionalCaptures, Store.CapturedGroups);
                     yield return result;
                 }
             }

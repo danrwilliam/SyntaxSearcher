@@ -92,9 +92,8 @@ namespace SyntaxSearchUnitTests.Build
             };
 
             _builder.Build(expression, options);
-            string data = GetString();
 
-            var searcher = _parser.ParseFromString(data);
+            var searcher = _parser.FromBuilder(_builder);
 
             Assert.That(searcher.Search(expression).Count(), Is.EqualTo(1), $"\"{expression}\" should be found");
             Assert.That(searcher.Search(SyntaxFactory.ParseStatement(alsoMatch)).Count(), Is.EqualTo(1), $"\"{alsoMatch}\" should also be found");
