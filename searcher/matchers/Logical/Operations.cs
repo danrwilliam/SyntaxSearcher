@@ -306,6 +306,11 @@ namespace SyntaxSearch.Matchers
     {
         public override bool IsMatch(SyntaxNode node)
         {
+            if (Children[0].IsMatch(node))
+            {
+                return true;
+            }
+
             foreach (var c in node.DescendantNodes(f => true))
             {
                 if (Children[0].IsMatch(c))
