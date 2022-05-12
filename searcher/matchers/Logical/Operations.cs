@@ -131,6 +131,8 @@ namespace SyntaxSearch.Matchers
 
     public partial class ReturnMatcher : BaseMatcher
     {
+        public override NodeAccept Accepts { get => NodeAccept.PostNode; set { } }
+
         protected SyntaxKind _ancestorKind;
         public override bool IsMatch(SyntaxNode node)
         {
@@ -307,7 +309,11 @@ namespace SyntaxSearch.Matchers
         {
             if (Children[0].IsMatch(node))
             {
-                return true;
+                var other = Children.FirstOrDefault(f => f.Accepts == NodeAccept.PostNode);
+                if (other is null || other.IsMatch(node))
+                {
+                    return true;
+                }
             }
 
             foreach (var c in node.DescendantNodes(f => true))
