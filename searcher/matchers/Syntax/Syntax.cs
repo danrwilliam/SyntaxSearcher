@@ -45,8 +45,8 @@ namespace SyntaxSearch.Matchers
 
             var matchers = Children.Where(c => c.Accepts == NodeAccept.Child);
 
-            // more matchers than child nodes
-            if (matchers.Count() > childNodes.Count())
+            // should be same number of matchers as child nodes 
+            if (matchers.Count() != childNodes.Count())
                 return false;
 
             var zipped = Enumerable.Zip(matchers, childNodes, (m, c) => new { matcher = m, childNode = c });
