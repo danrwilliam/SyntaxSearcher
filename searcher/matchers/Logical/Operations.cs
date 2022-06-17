@@ -211,6 +211,14 @@ namespace SyntaxSearch.Matchers
         }
     }
 
+    public class NotNullMatcher : LogicalMatcher
+    {
+        public override bool IsMatch(SyntaxNode node)
+        {
+            return node != null;
+        }
+    }
+
     /// <summary>
     /// Accepts anything as a match
     /// </summary>

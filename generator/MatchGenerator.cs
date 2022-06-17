@@ -6,6 +6,7 @@ using System.Linq;
 using System.Collections.Immutable;
 using System.Collections.Generic;
 using System.Text;
+using System.IO;
 
 namespace SyntaxSearcher.Generators
 {
@@ -111,6 +112,8 @@ namespace SyntaxSearcher.Generators
 
         private void GenerateParser(GeneratorExecutionContext context, List<SyntaxClassInfo> withClasses)
         {
+            var extraTypes = GetNonSyntaxClasses(context);
+
             StringBuilder builder = new();
 
             builder.AppendLine(
@@ -134,6 +137,8 @@ namespace SyntaxSearch.Parser
 
     public class SearchFileParser : IFileParser
     {
+        private delegate INodeMatcher ParseNodeDelegate(XmlNode element, ParseNodeDelegate parseDelegate, INodeMatcher parent = null);
+
         private const string _rootTag = ""SyntaxSearchDefinition"";
 
         public Searcher Parse(string filename)
@@ -190,36 +195,6 @@ namespace SyntaxSearch.Parser
             return new Searcher(matcher);
         }
 
-        private INodeMatcher ParseTree(XmlNode node, INodeMatcher parent = null)
-        {
-            INodeMatcher matcher = GetMatcher(node);
-        
-            if (matcher != null)
-            {
-                matcher.Store = parent?.Store ?? new CaptureStore();
-
-                foreach (XmlElement child in node.ChildNodes.OfType<XmlElement>())
-                {
-                    var childMatcher = ParseTree(child, matcher);
-                    if (childMatcher is LogicalMatcher logical && parent is LogicalMatcher)
-                    {
-                        childMatcher.Accepts = NodeAccept.Node;
-                    }
-                    else
-                    {
-                        childMatcher.Accepts = NodeAccept.Child;
-                    }
-
-                    if (childMatcher != null)
-                    {
-                        matcher.Children.Add(childMatcher);
-                    }
-                }
-            }
-            
-            return matcher;
-        }
-
         protected virtual INodeMatcher GetMatcherHook(XmlNode node)
         {
             return null;
@@ -227,42 +202,91 @@ namespace SyntaxSearch.Parser
         ");
 
             builder.AppendLine(@"
-        private INodeMatcher GetMatcher(XmlNode node)
+        private INodeMatcher ParseTree(XmlNode node, ParseNodeDelegate parseDelegate = null, INodeMatcher parent = null)
         {
+            INodeMatcher nodeMatcher = null;
             if (node is XmlElement element)
             {
+                string format = element.Attributes[""Children""]?.Value ?? ""Tree"";
+                bool childrenHandled = false;
+
                 switch (element.Name)
                 {");
 
             foreach (var type in withClasses)
-
             {
-                builder.AppendLine($"case \"{type.KindName}\":");
-                builder.AppendLine($" return new {type.ClassName}(element);");
+                builder.AppendLine($@"case ""{type.KindName}"":");
+
+                if (type.Properties.Any())
+                {
+                    builder.AppendLine($@"
+    if (format == ""Named"")
+    {{
+        nodeMatcher = ParseExplicit(element, ParseTree, parent);
+        childrenHandled = true;
+    }}
+    else
+    {{
+        nodeMatcher = new {type.ClassName}(element);
+    }}");
+                }
+                else
+                {
+                    builder.AppendLine($"nodeMatcher = new {type.ClassName}(element);"); 
+                }
+
+                builder.AppendLine("break;");
+
             }
 
-            AddNonSyntaxClasses(context, builder);
+            AddNonSyntaxClasses(context, builder, extraTypes);
 
             builder.AppendLine(@"
                 default:
                     var custom = GetMatcherHook(node);
                     if (custom != null)
-                        return custom;
+                        nodeMatcher = custom;
                     else
                         throw new ArgumentException($""unknown tag: {element.Name}"");
-                        
+                    break;
+                }
+
+                if (nodeMatcher != null && !childrenHandled)
+                {
+                    nodeMatcher.Store = parent?.Store ?? new CaptureStore();
+                    
+                    foreach (XmlElement child in node.ChildNodes.OfType<XmlElement>()) 
+                    {
+                        var childMatcher = ParseTree(child, ParseTree, nodeMatcher);
+                        if (childMatcher is LogicalMatcher && nodeMatcher is LogicalMatcher)
+                        {
+                            childMatcher.Accepts = NodeAccept.Node;
+                        }
+                        else
+                        {
+                            childMatcher.Accepts = NodeAccept.Child;
+                        }
+
+                        if (childMatcher != null)
+                        {
+                            nodeMatcher.Children.Add(childMatcher);
+                        }
+                    }
+                }
+            }
+
+                return nodeMatcher;
+            }
 ");
 
-            builder.AppendLine("}");
-            builder.AppendLine("}");
-            builder.AppendLine("return null;");
-            builder.AppendLine("}");
 
             builder.AppendLine(@"
-        private static INodeMatcher ParseExplicit(XmlNode node, INodeMatcher parent = null)
+        private static INodeMatcher ParseExplicit(XmlNode node, ParseNodeDelegate parseDelegate = null, INodeMatcher parent = null)
         {
             if (node is XmlElement element)
             {
+                parseDelegate ??= ParseExplicit;
+
                 switch (element.Name)
                 {
         ");
@@ -272,11 +296,11 @@ namespace SyntaxSearch.Parser
                 builder.AppendLine(@$"case ""{type.KindName}"":");
                 if (type.Properties.Any())
                 {
-                    builder.AppendLine("{");
-                    builder.AppendLine($"var matcher = new SyntaxSearch.Matchers.Explicit.{type.ClassName}(element);");
-                    builder.AppendLine("matcher.Store = parent?.Store ?? new CaptureStore();");
+                    builder.AppendLine($@"{{
+                    var matcher = new SyntaxSearch.Matchers.Explicit.{type.ClassName}(element);
+                    matcher.Store = parent?.Store ?? new CaptureStore();
 
-                    builder.AppendLine("foreach (var child in element.ChildNodes.OfType<XmlNode>()) {");
+                    foreach (var child in element.ChildNodes.OfType<XmlNode>()) {{");
 
                     builder.AppendLine("switch (child.Name) {");
 
@@ -287,7 +311,7 @@ namespace SyntaxSearch.Parser
                         {
                             builder.AppendLine($@"
                             foreach (var listElement in child.OfType<XmlNode>()) {{
-                                var listElementMatcher = ParseExplicit(listElement, matcher);
+                                var listElementMatcher = parseDelegate(listElement, parseDelegate, matcher);
                                 if (listElementMatcher is null)
                                     throw new ArgumentException($""unable to build matcher for {{listElement.Name}}"");
                                 listElementMatcher.Store = matcher.Store;
@@ -298,18 +322,30 @@ namespace SyntaxSearch.Parser
                         else
                         {
                             builder.AppendLine($@"{{
-                                if (child.ChildNodes.Count != 1)
-                                    throw new ArgumentException($""expected only 1 node for {{child.Name}}"");
-                                var childMatcher = ParseExplicit(child.ChildNodes.OfType<XmlElement>().First(), matcher);
+                                if (matcher.{property.Name} != null)
+                                    throw new ArgumentException($""expected only 1 matcher for {property.Name}"");
+                                
+                                var childNode = child.ChildNodes.OfType<XmlElement>().FirstOrDefault(); 
+                                INodeMatcher childMatcher = null;
+
+                                if (childNode is null)
+                                {{
+                                    childMatcher = new NotNullMatcher();
+                                }}
+                                else
+                                {{
+                                    childMatcher = parseDelegate(childNode, parseDelegate, matcher);
+                                }}
+
                                 if (childMatcher is null)
                                     throw new ArgumentException($""unable to build matcher for {{child.Name}}"");
                                 matcher.{property.Name} = childMatcher; 
                                 matcher.{property.Name}.Store = matcher.Store;
 }}");
-
                         }
                         builder.AppendLine("break;");
                     }
+
 
                     builder.AppendLine("default:");
                     builder.AppendLine("throw new InvalidOperationException($\"{element.Name} does not support a child of name {child.Name}\");");
@@ -330,7 +366,7 @@ namespace SyntaxSearch.Parser
                 }
             }
 
-            AddNonSyntaxClasses(context, builder, true);
+            AddNonSyntaxClasses(context, builder, extraTypes, true);
 
             builder.AppendLine("}");
             builder.AppendLine("}");
@@ -344,11 +380,16 @@ namespace SyntaxSearch.Parser
             builder.AppendLine("}");
 
             context.AddSource("SearchParser", Utilities.Normalize(builder));
+            using (StreamWriter w = new StreamWriter(@"c:\temp\searchParser.cs"))
+            {
+                w.Write(Utilities.Normalize(builder));
+            }
         }
 
-        private void AddNonSyntaxClasses(GeneratorExecutionContext context, StringBuilder builder,
-            bool setStore = false)
+        private List<(INamedTypeSymbol, ClassDeclarationSyntax, string)> GetNonSyntaxClasses(GeneratorExecutionContext context)
         {
+            List<(INamedTypeSymbol, ClassDeclarationSyntax, string)> types = new();
+
             foreach (var classDecl in _receiver.Collected)
             {
                 var model = context.Compilation.GetSemanticModel(classDecl.SyntaxTree);
@@ -361,39 +402,58 @@ namespace SyntaxSearch.Parser
                 if (classType.IsAbstract || classType.TypeKind != TypeKind.Class)
                     continue;
 
-                string tagName = classType.Name.Replace("Matcher", "");
+                types.Add((classType, classDecl, classType.Name.Replace("Matcher", "")));
+            }
 
+            return types;
+        }
+
+        private void AddNonSyntaxClasses(GeneratorExecutionContext context, StringBuilder builder,
+            List<(INamedTypeSymbol, ClassDeclarationSyntax, string)> extraTypes, bool iterate = false)
+        {
+            foreach ((var classType, var classDecl, var tagName) in extraTypes)
+            {
                 builder.AppendLine($"case \"{tagName}\":");
-                if (classDecl.Modifiers.Any(m => m.IsKind(SyntaxKind.PartialKeyword)))
+                bool takesArg = classDecl.Modifiers.Any(m => m.IsKind(SyntaxKind.PartialKeyword));
                 {
-                    if (setStore)
+                    if (iterate)
                     {
                         builder.AppendLine(@$"{{
-                            var matcher = new {classType.Name}(element);
+                            var matcher = new {classType.Name}({(takesArg ? "element" : "")});
                             matcher.Store = parent?.Store ?? new CaptureStore();
+                            
+                            foreach (var c in element.ChildNodes.OfType<XmlElement>())
+                            {{
+                                var childMatcher = parseDelegate(c, parseDelegate, matcher);
+                                if (childMatcher != null)
+                                    matcher.Children.Add(childMatcher);
+                            }}
                             return matcher;
 }}");
                     }
                     else
                     {
-                        builder.AppendLine($"return new {classType.Name}(element);");
+                        builder.AppendLine($"nodeMatcher = new {classType.Name}({(takesArg ? "element" : "")});");
+                        builder.AppendLine("break;");
                     }
                 }
+                /*
                 else
                 {
-                    if (setStore)
+                    if (iterate)
                     {
                         builder.AppendLine(@$"{{
                             var matcher = new {classType.Name}();
                             matcher.Store = parent?.Store ?? new CaptureStore();
-                            return matcher;
+                            break;
 }}");
                     }
                     else
                     {
-                        builder.AppendLine($"return new {classType.Name}();");
+                        builder.AppendLine($"nodeMatcher = new {classType.Name}();");
+                        builder.AppendLine("break;");
                     }
-                }
+                }*/
             }
         }
 
@@ -769,7 +829,7 @@ namespace SyntaxSearch.Matchers
                 if (isList)
                 {
                     builder.AppendLine(@$"
-    if ({namedProp.Name} != null)
+    if ({namedProp.Name}?.Any() == true)
     {{
         var {localName} = castNode.{namedProp.Name};
         if ({localName} == default)

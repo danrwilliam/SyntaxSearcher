@@ -108,6 +108,28 @@ namespace SyntaxSearchUnitTests.Build
             Assert.That(searcher.Search(SyntaxFactory.ParseStatement(wontMatch)).Count(), Is.EqualTo(0), $"\"{wontMatch}\" should not be found");
         }
 
+        [TestCase("obj[a].Value", "d[c].X", "obj[a+1].X")]
+        public void ExpressionTest_NoIdentifiers(string statement, string alsoMatch, string wontMatch)
+        {
+            var expression = SyntaxFactory.ParseStatement(statement);
+
+            var options = new SyntaxSearch.Builder.TreeBuilderOptions()
+            {
+                Modifiers = false,
+                Identifiers = false,
+                Keywords = false,
+                Tokens = false
+            };
+
+            _builder.Build(expression, options);
+
+            var searcher = _parser.FromBuilder(_builder);
+
+            Assert.That(searcher.Search(expression).Count(), Is.EqualTo(1), $"\"{expression}\" should be found");
+            Assert.That(searcher.Search(SyntaxFactory.ParseStatement(alsoMatch)).Count(), Is.EqualTo(1), $"\"{alsoMatch}\" should also be found");
+            Assert.That(searcher.Search(SyntaxFactory.ParseStatement(wontMatch)).Count(), Is.EqualTo(0), $"\"{wontMatch}\" should not be found");
+        }
+
         [Test]
         public void TestAutoCapture()
         {
