@@ -380,10 +380,6 @@ namespace SyntaxSearch.Parser
             builder.AppendLine("}");
 
             context.AddSource("SearchParser", Utilities.Normalize(builder));
-            using (StreamWriter w = new StreamWriter(@"c:\temp\searchParser.cs"))
-            {
-                w.Write(Utilities.Normalize(builder));
-            }
         }
 
         private List<(INamedTypeSymbol, ClassDeclarationSyntax, string)> GetNonSyntaxClasses(GeneratorExecutionContext context)
