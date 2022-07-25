@@ -28,10 +28,15 @@ namespace SyntaxSearch.Matchers
             if (!string.IsNullOrEmpty(_matchName)
                 && Store.CapturedGroups.TryGetValue(_matchName, out var compareToNode))
             {
-                return SyntaxFactory.AreEquivalent(compareToNode, node);
+                return CompareToCapturedNode(node, compareToNode);
             }
 
             return DoChildrenMatch(node);
+        }
+
+        protected virtual bool CompareToCapturedNode(SyntaxNode node, SyntaxNode compareToNode)
+        {
+            return SyntaxFactory.AreEquivalent(node, compareToNode);
         }
 
         protected virtual bool IsNodeMatch(SyntaxNode node)

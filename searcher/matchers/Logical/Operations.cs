@@ -37,9 +37,18 @@ namespace SyntaxSearch.Matchers
 
         public override bool IsMatch(SyntaxNode node)
         {
-            if (!string.IsNullOrWhiteSpace(_name) && Store.CapturedGroups.TryGetValue(_name, out var capturedNode))
+            if (!string.IsNullOrWhiteSpace(_name) 
+                && Store.CapturedGroups.TryGetValue(_name, out var capturedNode))
             {
-                return SyntaxFactory.AreEquivalent(node, capturedNode);
+                if (capturedNode is VariableDeclaratorSyntax variableDeclSyntax
+                    && node is IdentifierNameSyntax identifier)
+                {
+                    return SyntaxFactory.AreEquivalent(variableDeclSyntax.Identifier, identifier.Identifier);
+                }
+                else
+                {
+                    return SyntaxFactory.AreEquivalent(node, capturedNode);
+                }
             }
             return false;
         }
