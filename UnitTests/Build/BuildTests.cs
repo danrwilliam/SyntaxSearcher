@@ -130,24 +130,26 @@ namespace SyntaxSearchUnitTests.Build
             Assert.That(searcher.Search(SyntaxFactory.ParseStatement(wontMatch)).Count(), Is.EqualTo(0), $"\"{wontMatch}\" should not be found");
         }
 
-        [Test]
-        public void TestAutoCapture()
+        [TestCase("if (a != null) a();", "if (a != null) b();")]
+        public void TestAutoCapture(string autoCapture, string wontCapture)
         {
-            var node = SyntaxFactory.ParseStatement(@"
-if (a != null)
-    a();
-");
+            var node = SyntaxFactory.ParseStatement(autoCapture);
+
             _builder.Build(node, new SyntaxSearch.Builder.TreeBuilderOptions()
             {
                 AutomaticCapture = true,
                 UseAnythingForAutomaticCapture = true
             });
 
-            string data = GetString();
+            var searcher = _parser.FromBuilder(_builder);
 
             Assert.That(
-                data,
-                Is.EqualTo(BuildXml(@"<IfStatement><NotEqualsExpression><Anything Name=""capture_0"" /><NullLiteralExpression /></NotEqualsExpression><ExpressionStatement><InvocationExpression><MatchCapture Name=""capture_0"" /><ArgumentList /></InvocationExpression></ExpressionStatement></IfStatement>")));
+                searcher.Search(node).Count(),
+                Is.EqualTo(1),
+                $"builder built from {nameof(autoCapture)} should match itself");
+            Assert.That(searcher.Search(SyntaxFactory.ParseStatement(wontCapture)).Count(),
+                        Is.EqualTo(0),
+                        $"builder built from {nameof(autoCapture)} should not match {nameof(wontCapture)}");
         }
     }
 }
