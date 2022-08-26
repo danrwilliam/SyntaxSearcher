@@ -50,6 +50,10 @@ namespace SyntaxSearch.Matchers
 
             var matchers = Children.Where(c => c.Accepts == NodeAccept.Child);
 
+            // if there aren't any child matchers, treat that as a match
+            if (!matchers.Any())
+                return true;
+
             // should be same number of matchers as child nodes 
             if (matchers.Count() != childNodes.Count())
                 return false;
