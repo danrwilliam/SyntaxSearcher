@@ -6,7 +6,6 @@ using System.Linq;
 using System.Collections.Immutable;
 using System.Collections.Generic;
 using System.Text;
-using System.IO;
 
 namespace SyntaxSearcher.Generators
 {

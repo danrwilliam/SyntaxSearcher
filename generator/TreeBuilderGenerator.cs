@@ -1,9 +1,7 @@
 ﻿using Microsoft.CodeAnalysis;
-using System;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.CSharp;
 using System.Linq;
-using Microsoft.CodeAnalysis.Text;
 using System.Text;
 using System.Collections.Immutable;
 using System.Collections.Generic;

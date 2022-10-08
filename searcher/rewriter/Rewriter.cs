@@ -4,18 +4,16 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using SyntaxSearch.Matchers;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
 
 namespace SyntaxSearch.Rewriter
 {
     public class RewriterTemplate
     {
-        private string _template;
-        private HashSet<(string, string)> _namedGroups;
+        private readonly string _template;
+        private readonly HashSet<(string, string)> _namedGroups;
 
-        private NodeWrapper _wrap;
+        private readonly NodeWrapper _wrap;
 
         public delegate SyntaxNode NodeWrapper(ExpressionSyntax node);
 
