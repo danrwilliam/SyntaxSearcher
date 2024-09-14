@@ -21,15 +21,18 @@ namespace SyntaxSearch
         /// </summary>
         /// <param name="root">match object</param>
         public Searcher(INodeMatcher root)
+            : this(root, root?.Store ?? new())
         {
-            _match = root;
-            Store = _match.Store;
         }
 
         public Searcher(INodeMatcher root, CaptureStore store)
         {
             _match = root;
             Store = store; 
+            if (_match.Store is null)
+            {
+                _match.Store = store;
+            }
         }
 
         public string ToTreeString()

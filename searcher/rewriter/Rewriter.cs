@@ -13,16 +13,16 @@ namespace SyntaxSearch.Rewriter
         private readonly string _template;
         private readonly HashSet<(string, string)> _namedGroups;
 
-        private readonly NodeWrapper _wrap;
+        private readonly NodeWrapperDelegate _wrap;
 
-        public delegate SyntaxNode NodeWrapper(ExpressionSyntax node);
+        public delegate SyntaxNode NodeWrapperDelegate(ExpressionSyntax node);
 
-        public RewriterTemplate(string templateString, NodeWrapper wrapperDelegate = null)
+        public RewriterTemplate(string templateString, NodeWrapperDelegate wrapperDelegate = null)
         {
             _template = templateString;
             _wrap = wrapperDelegate;
 
-            _namedGroups = new HashSet<(string, string)>();
+            _namedGroups = [];
 
             MatchCollection captures = Regex.Matches(_template, @"(\$([A-Za-z]+))");
 

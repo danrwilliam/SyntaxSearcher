@@ -13,7 +13,7 @@ namespace SyntaxSearcher.Generators
         /// <summary>
         /// Collected syntax nodes
         /// </summary>
-        public List<TNode> Collected { get; } = new();
+        public List<TNode> Collected { get; } = [];
 
         public void OnVisitSyntaxNode(SyntaxNode syntaxNode)
         {

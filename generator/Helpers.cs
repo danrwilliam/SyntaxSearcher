@@ -12,9 +12,9 @@ namespace SyntaxSearcher.Generators
         /// <param name="parameterType"></param>
         /// <param name="syntaxNodeType"></param>
         /// <returns>tuple of the property symbol and if it's a list</returns>
-        public static (IPropertySymbol prop, bool isList)[] GetNamedProperties(ITypeSymbol parameterType, INamedTypeSymbol syntaxNodeType)
+        public static MatchProperty[] GetNamedProperties(ITypeSymbol parameterType, INamedTypeSymbol syntaxNodeType)
         {
-            return parameterType.GetMembers().OfType<IPropertySymbol>().Select(f =>
+            return [.. parameterType.GetMembers().OfType<IPropertySymbol>().Select(f =>
             {
                 if (f.Type.IsSubclassOf(syntaxNodeType))
                     return new { prop = f, isList = false, include = true };
@@ -25,9 +25,9 @@ namespace SyntaxSearcher.Generators
 
                 }
                 return new { prop = f, isList = false, include = false };
-            }).Where(f => f.include)
-            .Where(f => f.prop.Name != "Parent")
-            .Select(f => (f.prop, f.isList)).ToArray();
+            })
+            .Where(f => f.include && f.prop.Name != "Parent")
+            .Select(f => new MatchProperty(f.prop, f.isList))];
         }
     }
 }

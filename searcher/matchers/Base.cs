@@ -1,4 +1,5 @@
 ﻿using Microsoft.CodeAnalysis;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -19,6 +20,9 @@ namespace SyntaxSearch.Matchers
         /// <returns>node matches criteria</returns>
         bool IsMatch(SyntaxNode node);
 
+        /// <summary>
+        /// Stores additional captured nodes found during search
+        /// </summary>
         CaptureStore Store { get; set; }
 
         /// <summary>
@@ -30,6 +34,11 @@ namespace SyntaxSearch.Matchers
         string ToTreeString();
     }
 
+    public interface ITreeWalkNodeMatcher : INodeMatcher
+    {
+
+    }
+
     public enum NodeAccept
     {
         Node,
@@ -39,8 +48,15 @@ namespace SyntaxSearch.Matchers
 
     public class CaptureStore
     {
-        public Dictionary<string, SyntaxNode> CapturedGroups { get; } = new Dictionary<string, SyntaxNode>();
-        public List<SyntaxNode> AdditionalCaptures { get;  } = new List<SyntaxNode>();
+        /// <summary>
+        /// Collection of named captures 
+        /// </summary>
+        public Dictionary<string, SyntaxNode> CapturedGroups { get; } = [];
+
+        /// <summary>
+        /// Additional non-named captures
+        /// </summary>
+        public List<SyntaxNode> AdditionalCaptures { get;  } = [];
 
         public SyntaxNode Override { get; set; } = default;
 
@@ -52,11 +68,28 @@ namespace SyntaxSearch.Matchers
         }
     }
 
-    public abstract class BaseMatcher : INodeMatcher
+    public abstract class BaseMatcher : ITreeWalkNodeMatcher, IEnumerable<INodeMatcher>
     {
-        public List<INodeMatcher> Children { get; } = new List<INodeMatcher>();
+        public List<INodeMatcher> Children { get; } = [];
 
-        public CaptureStore Store { get; set; }
+        private CaptureStore _store;
+        public CaptureStore Store
+        {
+            get => _store;
+            set
+            {
+                _store = value;
+                SetStore(value);
+            }
+        }
+
+        protected virtual void SetStore(CaptureStore store)
+        {
+            foreach (var c in Children)
+            {
+                c.Store = _store;
+            }
+        }
 
         public virtual NodeAccept Accepts { get; set; } = NodeAccept.Node;
 
@@ -64,7 +97,7 @@ namespace SyntaxSearch.Matchers
 
         public string ToTreeString()
         {
-            StringBuilder builder = new StringBuilder();
+            StringBuilder builder = new();
 
             ToTreeString(builder, 0);
 
@@ -79,6 +112,20 @@ namespace SyntaxSearch.Matchers
                 c.ToTreeString(builder, level + 1);
             }
         }
-    }
 
+        public void Add(INodeMatcher matcher)
+        {
+            Children.Add(matcher);
+        }
+
+        public IEnumerator<INodeMatcher> GetEnumerator()
+        {
+            return Children.AsEnumerable().GetEnumerator();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return Children.AsEnumerable().GetEnumerator();
+        }
+    }
 }

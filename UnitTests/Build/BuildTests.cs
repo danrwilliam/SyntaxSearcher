@@ -49,11 +49,6 @@ namespace SyntaxSearchUnitTests.Build
             return data;
         }
 
-        public static string BuildXml(string inner)
-        {
-            return $"<SyntaxSearchDefinition>{inner}</SyntaxSearchDefinition>";
-        }
-
         [TestCase("int a;", "int b;", "List<int> a = new();")]
         [TestCase("List<int> a = new();", "List<int> n = new();", "List<int> a = new List<int>();")]
         [TestCase("a(obj);", "b(test);", "a(extra, num);")]
@@ -86,26 +81,32 @@ namespace SyntaxSearchUnitTests.Build
             Assert.That(searcher.Search(SyntaxFactory.ParseStatement(wontMatch)).Count(), Is.EqualTo(0), $"\"{wontMatch}\" should not be found in explicit mode");
         }
 
-        [TestCase("obj[a].Value", "obj[a].Value", "obj[a].X")]
-        public void ExpressionTest(string statement, string alsoMatch, string wontMatch)
+        //[TestCase("obj[a].Value", "obj[a].Value", 1, true)]
+        [TestCase("obj[a].Value", "obj[a].Value", 1, false)]
+        //[TestCase("obj[a].Value", "obj [ a ]. Value", 1, true)]
+        [TestCase("obj[a].Value", "obj [ a ]. Value", 1, false)]
+        //[TestCase("obj[a].Value", "obj[a].X", 0, true)]
+        [TestCase("obj[a].Value", "obj[a].X", 0, false)]
+        //[TestCase("a.b.c(1, 2, a.v * 3)", "a.b.c(1,2,a.v*3)", 1, true)]
+        [TestCase("a.b.c(1, 2, a.v * 3)", "a.b.c(1,2,a.v*3)", 1, false)]
+        public void ExpressionTest(string sourceExpression, string searchExpression, int expectedMatches, bool namedChildren)
         {
-            var expression = SyntaxFactory.ParseStatement(statement);
+            var expression = SyntaxFactory.ParseStatement(sourceExpression);
 
             var options = new SyntaxSearch.Builder.TreeBuilderOptions()
             {
                 Modifiers = false,
                 Identifiers = true,
                 Keywords = false,
-                Tokens = false
+                Tokens = false,
+                NamedChildren = namedChildren
             };
 
             _builder.Build(expression, options);
 
             var searcher = _parser.FromBuilder(_builder);
 
-            Assert.That(searcher.Search(expression).Count(), Is.EqualTo(1), $"\"{expression}\" should be found");
-            Assert.That(searcher.Search(SyntaxFactory.ParseStatement(alsoMatch)).Count(), Is.EqualTo(1), $"\"{alsoMatch}\" should also be found");
-            Assert.That(searcher.Search(SyntaxFactory.ParseStatement(wontMatch)).Count(), Is.EqualTo(0), $"\"{wontMatch}\" should not be found");
+            Assert.That(searcher.Search(SyntaxFactory.ParseStatement(searchExpression)), Has.Exactly(expectedMatches).Items);
         }
 
         [TestCase("obj[a].Value", "d[c].X", "obj[a+1].X")]
@@ -130,26 +131,26 @@ namespace SyntaxSearchUnitTests.Build
             Assert.That(searcher.Search(SyntaxFactory.ParseStatement(wontMatch)).Count(), Is.EqualTo(0), $"\"{wontMatch}\" should not be found");
         }
 
-        [TestCase("if (a != null) a();", "if (a != null) b();")]
-        public void TestAutoCapture(string autoCapture, string wontCapture)
+        [TestCase("if (a != null) a();", "if (a != null) a();", 1)]
+        [TestCase("if (a != null) a();", "if (obj.value != null) obj.value();", 1)]
+        [TestCase("if (a != null) a();", "if (a != null) b();", 0)]
+        public void TestAutoCapture(string pattern, string search, int captured)
         {
-            var node = SyntaxFactory.ParseStatement(autoCapture);
+            var patternNode = SyntaxFactory.ParseStatement(pattern);
 
-            _builder.Build(node, new SyntaxSearch.Builder.TreeBuilderOptions()
+            _builder.Build(patternNode, new SyntaxSearch.Builder.TreeBuilderOptions()
             {
                 AutomaticCapture = true,
                 UseAnythingForAutomaticCapture = true
             });
 
+            var node = SyntaxFactory.ParseStatement(search);
+
             var searcher = _parser.FromBuilder(_builder);
 
             Assert.That(
-                searcher.Search(node).Count(),
-                Is.EqualTo(1),
-                $"builder built from {nameof(autoCapture)} should match itself");
-            Assert.That(searcher.Search(SyntaxFactory.ParseStatement(wontCapture)).Count(),
-                        Is.EqualTo(0),
-                        $"builder built from {nameof(autoCapture)} should not match {nameof(wontCapture)}");
+                searcher.Search(node),
+                Has.Exactly(captured).Items);
         }
     }
 }

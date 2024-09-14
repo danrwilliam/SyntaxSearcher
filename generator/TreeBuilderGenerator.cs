@@ -15,7 +15,6 @@ namespace SyntaxSearcher.Generators
         {
             {"Identifier", "Text" },
             {"Keyword" , "Text" },
-            //{"Modifiers", null },
             {"Token", "ValueText" }
         }.ToImmutableDictionary();
 
@@ -57,14 +56,14 @@ namespace SyntaxSearcher.Generators
 
                 var parameterType = method.Parameters[0].Type;
                 bool started = false;
-                (IPropertySymbol prop, bool isList)[] namedProperties = Helpers.GetNamedProperties(parameterType, syntaxNodeType);
+                var namedProperties = Helpers.GetNamedProperties(parameterType, syntaxNodeType);
 
                 static void createHeaderIfNeeded(StringBuilder builder, IMethodSymbol m, ITypeSymbol type, ref bool start)
                 {
                     if (!start)
                     {
                         builder.AppendLine($"public override void {m.Name}({type.Name} node)");
-                        builder.AppendLine($"{{");
+                        builder.AppendLine("{");
 
                         start = true;
                     }
@@ -175,16 +174,16 @@ if (!handled)
                         createHeaderIfNeeded(text, method, parameterType, ref started);
 
                         text.AppendLine($"if (_options.{kvp.Key}s)");
-                        text.AppendLine($"{{");
+                        text.AppendLine("{");
 
                         if (kvp.Value is null)
                         {
                             text.AppendLine($"if (node.{kvp.Key}.Any())");
-                            text.AppendLine($"{{");
+                            text.AppendLine("{");
                             text.AppendLine($"    var {kvp.Key.ToLower()} = Document.CreateAttribute(\"{kvp.Key}\");");
                             text.AppendLine($"    {kvp.Key.ToLower()}.Value = string.Join(\",\", node.{kvp.Key}.Select(m => m.Kind().ToString().Replace(\"Keyword\", string.Empty).ToLower()));");
                             text.AppendLine($"    _current.Attributes.SetNamedItem({kvp.Key.ToLower()});");
-                            text.AppendLine($"}}");
+                            text.AppendLine("}");
                         }
                         else
                         {
@@ -193,7 +192,7 @@ if (!handled)
                             text.AppendLine($"{kvp.Key.ToLower()}.Value = node.{kvp.Key}.{kvp.Value};");
                             text.AppendLine($"_current.Attributes.SetNamedItem({kvp.Key.ToLower()});");
                         }
-                        text.AppendLine($"}}");
+                        text.AppendLine("}");
                     }
                 }
 
@@ -207,7 +206,7 @@ if (!handled)
                 {
                     text.AppendLine();
                     text.AppendLine($"base.{method.Name}(node);");
-                    text.AppendLine($"}}");
+                    text.AppendLine("}");
                     text.AppendLine();
                 }
             }

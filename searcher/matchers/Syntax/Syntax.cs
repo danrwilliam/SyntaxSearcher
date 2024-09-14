@@ -103,6 +103,11 @@ namespace SyntaxSearch.Matchers
         {
         }
 
+        protected ExplicitNodeMatcher(ExplicitNodeMatcher copy) : base(copy._thisKind, copy._captureName, copy._matchName)
+        {
+
+        }
+
         protected abstract override bool DoChildNodesMatch(SyntaxNode node);
     }
 }
