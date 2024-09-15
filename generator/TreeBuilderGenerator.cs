@@ -217,7 +217,7 @@ if (!handled)
             text.AppendLine("    }");
             text.AppendLine("}");
 
-            context.AddSource("TreeBuilder", Utilities.Normalize(text));
+            context.AddSource("TreeBuilder.g.cs", Utilities.Normalize(text));
         }
 
         public void Initialize(GeneratorInitializationContext context)

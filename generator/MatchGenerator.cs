@@ -280,7 +280,7 @@ namespace SyntaxSearch.Parser
 
                         if (childMatcher != null)
                         {
-                            nodeMatcher.Children.Add(childMatcher);
+                            nodeMatcher.AddChild(childMatcher);
                         }
                     }
                 }
@@ -411,7 +411,7 @@ namespace SyntaxSearch.Parser
             //namespace
             builder.AppendLine("}");
 
-            context.AddSource("SearchParser", Utilities.Normalize(builder));
+            context.AddSource("SearchParser.g.cs", Utilities.Normalize(builder));
         }
 
         private List<(INamedTypeSymbol, ClassDeclarationSyntax, string)> GetNonSyntaxClasses(GeneratorExecutionContext context)
@@ -455,7 +455,7 @@ namespace SyntaxSearch.Parser
                                 {{
                                     var childMatcher = parseDelegate(c, parseDelegate, matcher);
                                     if (childMatcher != null)
-                                        matcher.Children.Add(childMatcher);
+                                        matcher.AddChild(childMatcher);
                                 }}
                                 return matcher;
                             }}");
@@ -598,7 +598,7 @@ namespace SyntaxSearch.Matchers
                     builder.AppendLine("}");
                     builder.AppendLine("}");
                     builder.AppendLine("}");
-                    context.AddSource($"{classType.Name}.Ctor", Utilities.Normalize(builder));
+                    context.AddSource($"{classType.Name}.Ctor.g.cs", Utilities.Normalize(builder));
                 }
             }
         }
@@ -639,7 +639,7 @@ namespace SyntaxSearch.Matchers
                     var slim = BuildClassNoOverrides(kind, null);
                     string classTypeName = $"{kind.Name}.Matcher";
 
-                    context.AddSource(classTypeName, Utilities.Normalize(slim));
+                    context.AddSource($"{classTypeName}.g.cs", Utilities.Normalize(slim));
 
                     newTrees.Add(info);
                 }
@@ -681,7 +681,7 @@ namespace SyntaxSearch.Matchers
                         contents = BuildClassNoOverrides(kind, associatedType.Name, namedProperties);
                     }
 
-                    context.AddSource($"{kind.Name}.Matcher", Utilities.Normalize(contents));
+                    context.AddSource($"{kind.Name}.Matcher.g.cs", Utilities.Normalize(contents));
 
                 }
             }
