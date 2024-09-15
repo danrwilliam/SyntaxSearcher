@@ -80,7 +80,7 @@ namespace SyntaxSearchUnitTests.Matcher
             var mult = new SyntaxSearch.Matchers.Explicit.MultiplyAssignmentExpressionMatcher();
             mult = mult
                 .WithLeft(new IdentifierNameMatcher(identifier: "a", captureName: "left"))
-                .WithRight(new NotMatcher()
+                .WithRight(new NotMatcher
                 {
                     new IdentifierNameMatcher(matchCapture: "left")
                 });

@@ -55,11 +55,8 @@ namespace SyntaxSearch.Builder
 
         public override void VisitToken(SyntaxToken token)
         {
-            var thisElement = Document.CreateElement(token.Kind().ToString());
-            _current.AppendChild(thisElement);
-            var thisParent = _current;
-
-            _current = thisElement;
+            (_current, var thisParent) = (Document.CreateElement(token.Kind().ToString()), _current);
+            thisParent.AppendChild(_current);
 
             base.VisitToken(token);
 
@@ -68,12 +65,9 @@ namespace SyntaxSearch.Builder
 
         public override void Visit(SyntaxNode node)
         {
-            var thisElement = Document.CreateElement(node.Kind().ToString());
+            (_current, var thisParent) = (Document.CreateElement(node.Kind().ToString()), _current);
 
-            _current.AppendChild(thisElement);
-
-            var thisParent = _current;
-            _current = thisElement;
+            thisParent.AppendChild(_current);
 
             base.Visit(node);
 

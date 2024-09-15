@@ -444,11 +444,52 @@ namespace SyntaxSearch.Parser
                 builder.AppendLine($"case \"{tagName}\":");
                 bool takesArg = classDecl.Modifiers.Any(m => m.IsKind(SyntaxKind.PartialKeyword));
                 {
+                    IFieldSymbol[] fields = [.. classType.GetMembers().OfType<IFieldSymbol>().Where(f => !f.IsStatic && f.DeclaredAccessibility is Accessibility.Protected or Accessibility.Private)];
+
+                    builder.AppendLine("{");
+
+                    List<string> args = [];
+
+                    foreach (var f in fields)
+                    {
+                        string shortName = f.Name.Trim('_').Replace("Kind", "");
+                        string attributeName = $"{char.ToUpper(shortName[0])}{shortName.Substring(1)}";
+
+                        builder.AppendLine($"{f.Type} {shortName} = default;");
+                        switch (f.Type)
+                        {
+                            case { SpecialType: SpecialType.System_String }:
+                                builder.AppendLine(@$"{shortName} = element.Attributes[""{attributeName}""]?.Value;");
+                                args.Add(shortName);
+                                break;
+
+                            case { SpecialType: SpecialType.System_Boolean }:
+                                builder.AppendLine($@"
+                                if (element.Attributes[""{attributeName}""]?.Value is string {shortName}Raw)
+                                {{
+                                    {shortName} = bool.Parse({shortName}Raw);
+                                }}");
+                                args.Add(shortName);
+                                break;
+
+                            case { TypeKind: TypeKind.Enum }:
+                                builder.AppendLine($@"
+                                if (element.Attributes[""{attributeName}""]?.Value is string {shortName}Raw)
+                                {{
+                                    {shortName} = ({f.Type.ToDisplayString()})Enum.Parse(typeof({f.Type.ToDisplayString()}), {shortName}Raw);
+                                }}");
+                                args.Add(shortName);
+                                break;
+
+                            default:
+                                break;
+                        }
+                    }
+
                     if (iterate)
                     {
                         builder.AppendLine(@$"
-                            {{
-                                var matcher = new {classType.Name}({(takesArg ? "element" : "")});
+                                var matcher = new {classType.Name}({string.Join(", ", args)});
                                 matcher.Store = parent?.Store ?? new CaptureStore();
                                 
                                 foreach (var c in element.ChildNodes.OfType<XmlElement>())
@@ -457,14 +498,15 @@ namespace SyntaxSearch.Parser
                                     if (childMatcher != null)
                                         matcher.AddChild(childMatcher);
                                 }}
-                                return matcher;
-                            }}");
+                                return matcher;");
                     }
                     else
                     {
-                        builder.AppendLine($"nodeMatcher = new {classType.Name}({(takesArg ? "element" : "")});");
+                        builder.AppendLine($"nodeMatcher = new {classType.Name}({string.Join(", ", args)});");
                         builder.AppendLine("break;");
                     }
+
+                    builder.AppendLine("}");
                 }
             }
         }
@@ -512,67 +554,17 @@ namespace SyntaxSearch.Parser
 
                 StringBuilder builder = new();
 
-                foreach (var field in classType.GetMembers()
-                                               .OfType<IFieldSymbol>()
-                                               .Where(f => !f.IsStatic && !f.IsReadOnly && !f.IsAbstract && (f.DeclaredAccessibility == Accessibility.Protected || f.DeclaredAccessibility == Accessibility.Private)))
-                {
-                    if (builder.Length == 0)
-                    {
-                        builder.AppendLine(@$"
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Xml;
-using System.Text;
-using System.Collections.Immutable;
+                IFieldSymbol[] fields = [
+                    ..classType.GetMembers().OfType<IFieldSymbol>()
+                      .Where(f => f is { IsStatic: false, IsAbstract: false, DeclaredAccessibility: Accessibility.Protected or Accessibility.Private })];
 
-namespace SyntaxSearch.Matchers
-{{
-    public partial class {classType.Name}
-    {{
-        public {classType.Name}(XmlElement element){(isOverride ? " : base(element)" : "")}
-        {{
-");
-                    }
+                string[] constructorArgs = [.. fields.Select(f => $"{f.Type.ToDisplayString()} {f.Name.Trim('_')}")];
 
-                    if (SymbolEqualityComparer.Default.Equals(field.Type, stringType))
-                    {
-                        string serializedName = field.Name.Trim('_').Trim().Replace("Kind", "");
-                        serializedName = $"{char.ToUpper(serializedName[0])}{serializedName.Substring(1)}";
-                        string value = $"{char.ToLower(serializedName[0])}{serializedName.Substring(1)}";
 
-                        builder.AppendLine($"{field.Name} = element?.Attributes[\"{serializedName}\"]?.Value;");
-                    }
-                    else if (SymbolEqualityComparer.Default.Equals(field.Type, boolType))
-                    {
-                        string serializedName = field.Name.Trim('_').Trim().Replace("Kind", "");
-                        serializedName = $"{char.ToUpper(serializedName[0])}{serializedName.Substring(1)}";
-                        string value = $"{char.ToLower(serializedName[0])}{serializedName.Substring(1)}";
+                bool generate = classDecl.Modifiers.Any(m => m.IsKind(SyntaxKind.PartialKeyword))
+                    || classType.GetMembers().OfType<IMethodSymbol>().Any(m => m.MethodKind == MethodKind.Constructor && !m.IsImplicitlyDeclared);
 
-                        builder.AppendLine(@$"if (element?.Attributes[""{serializedName}""] != null) 
-{{
-    {field.Name} = bool.Parse(element.Attributes[""{serializedName}""].Value);
-}}
-");
-                    }
-                    else if (field.Type.TypeKind == TypeKind.Enum)
-                    {
-                        string serializedName = field.Name.Trim('_').Trim().Replace("Kind", "");
-                        serializedName = $"{char.ToUpper(serializedName[0])}{serializedName.Substring(1)}";
-                        string value = $"{char.ToLower(serializedName[0])}{serializedName.Substring(1)}";
-
-                        builder.AppendLine($@"
-if (element?.Attributes[""{serializedName}""]?.Value is string {value})
-{{
-    {field.Name} = Enum.GetValues(typeof({field.Type.ToDisplayString()})).Cast<{field.Type.ToDisplayString()}>().First(k => k.ToString() == {value});
-}}
-");
-                    }
-                }
-
-                if (builder.Length == 0 && isOverride)
+                if (generate)
                 {
                     builder.AppendLine(@$"
 using Microsoft.CodeAnalysis;
@@ -587,16 +579,58 @@ using System.Collections.Immutable;
 namespace SyntaxSearch.Matchers
 {{
     public partial class {classType.Name}
-    {{
-        public {classType.Name}(XmlElement element){(isOverride ? " : base(element)" : "")}
-        {{
-");
+    {{");
+
+                    bool firstField = true;
+                    foreach (var field in fields)
+                    {
+                        if (firstField)
+                        {
+                            builder.AppendLine(@$"
+        public {classType.Name}({string.Join(", ", constructorArgs)}){(isOverride ? " : base()" : "")}
+        {{");
+                        }
+                        firstField = false;
+
+                        if (SymbolEqualityComparer.Default.Equals(field.Type, stringType))
+                        {
+                            string serializedName = field.Name.Trim('_').Trim().Replace("Kind", "");
+                            serializedName = $"{char.ToUpper(serializedName[0])}{serializedName.Substring(1)}";
+                            string value = $"{char.ToLower(serializedName[0])}{serializedName.Substring(1)}";
+
+                            builder.AppendLine($"{field.Name} = {field.Name.Trim('_')};");
+                        }
+                        else if (SymbolEqualityComparer.Default.Equals(field.Type, boolType))
+                        {
+                            string serializedName = field.Name.Trim('_').Trim().Replace("Kind", "");
+                            serializedName = $"{char.ToUpper(serializedName[0])}{serializedName.Substring(1)}";
+                            string value = $"{char.ToLower(serializedName[0])}{serializedName.Substring(1)}";
+
+                            builder.AppendLine($"{field.Name} = {field.Name.Trim('_')};");
+                        }
+                        else if (field.Type.TypeKind == TypeKind.Enum)
+                        {
+                            string serializedName = field.Name.Trim('_').Trim().Replace("Kind", "");
+                            serializedName = $"{char.ToUpper(serializedName[0])}{serializedName.Substring(1)}";
+                            string value = $"{char.ToLower(serializedName[0])}{serializedName.Substring(1)}";
+
+                            builder.AppendLine($"{field.Name} = {field.Name.Trim('_')};");
+                        }
+                    }
+
+                    if (!firstField)
+                    {
+                        // close constructor
+                        builder.AppendLine("}");
+                    }
                 }
+
 
                 if (builder.Length > 0)
                 {
+                    // close class
                     builder.AppendLine("}");
-                    builder.AppendLine("}");
+                    // close namespace
                     builder.AppendLine("}");
                     context.AddSource($"{classType.Name}.Ctor.g.cs", Utilities.Normalize(builder));
                 }
@@ -737,7 +771,7 @@ namespace SyntaxSearch.Matchers
 
                 if (namedProperties.Any())
                 {
-                    AppendExplicitClassWithFields(kind, className, [], namedProperties, builder);
+                    GenerateExplicitMatcherClass(kind, className, [], namedProperties, builder);
                 }
             }
             else
@@ -773,11 +807,11 @@ namespace SyntaxSearch.Matchers
             return builder.ToString();
         }
 
-        private static void AppendExplicitClassWithFields(ISymbol kind,
-                                                          string className,
-                                                          List<MatchField> fields,
-                                                          MatchProperty[] namedProperties,
-                                                          StringBuilder builder)
+        private static void GenerateExplicitMatcherClass(ISymbol kind,
+                                                         string className,
+                                                         List<MatchField> fields,
+                                                         MatchProperty[] namedProperties,
+                                                         StringBuilder builder)
         {
             builder.AppendLine("namespace SyntaxSearch.Matchers.Explicit {");
 
@@ -939,6 +973,34 @@ namespace SyntaxSearch.Matchers
             builder.AppendLine("return true;");
             builder.AppendLine("}");
 
+            builder.AppendLine($@"
+            protected override void SetStore(CaptureStore store)
+            {{
+");
+
+            foreach (var prop in namedProperties)
+            {
+                if (prop.IsList)
+                {
+                    builder.AppendLine($@"if (!{prop.Property.Name}.IsEmpty)
+                    {{
+                        foreach (var m in {prop.Property.Name})
+                        {{
+                            m.Store = store;
+                        }}
+                    }}");
+                }
+                else
+                {
+                    builder.AppendLine($@"if ({prop.Property.Name} is not null)
+                    {{
+                        {prop.Property.Name}.Store = store;
+                    }}");
+                }
+            }
+
+            builder.AppendLine("}");
+
             builder.AppendLine(@"
     }
 }
@@ -1022,7 +1084,7 @@ namespace SyntaxSearch.Matchers
 
             if (namedProperties.Any())
             {
-                AppendExplicitClassWithFields(kind, className, fields, namedProperties, builder);
+                GenerateExplicitMatcherClass(kind, className, fields, namedProperties, builder);
             }
 
             return Utilities.Normalize(builder);
@@ -1039,54 +1101,6 @@ namespace SyntaxSearch.Matchers
         {
             _receiver = new SyntaxCollector<ClassDeclarationSyntax>();
             context.RegisterForSyntaxNotifications(() => _receiver);
-        }
-    }
-
-    internal class SyntaxClassInfo
-    {
-        public string KindName { get; set; }
-        public string ClassName { get; set; }
-
-        public SyntaxKind Kind { get; set;  }
-
-        public IReadOnlyList<MatchProperty> Properties { get; internal set; } = [];
-
-        public IReadOnlyList<MatchField> Fields { get; internal set; } = [];
-
-        public SyntaxClassInfo(string kind, string className)
-        {
-            KindName = kind;
-            ClassName = className;
-        }
-
-        public SyntaxClassInfo()
-        {
-        }
-    }
-
-    internal record struct MatchProperty(IPropertySymbol Property, bool IsList)
-    {
-        public static implicit operator (IPropertySymbol, bool)(MatchProperty value)
-        {
-            return (value.Property, value.IsList);
-        }
-
-        public static implicit operator MatchProperty((IPropertySymbol, bool) value)
-        {
-            return new MatchProperty(value.Item1, value.Item2);
-        }
-    }
-
-    internal record struct MatchField(string TypeName, string TokenName, string TokenValue, string FieldName)
-    {
-        public static implicit operator (string, string, string, string)(MatchField value)
-        {
-            return (value.TypeName, value.TokenName, value.TokenValue, value.FieldName);
-        }
-
-        public static implicit operator MatchField((string, string, string, string) value)
-        {
-            return new MatchField(value.Item1, value.Item2, value.Item3, value.Item4);
         }
     }
 }

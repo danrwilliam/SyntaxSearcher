@@ -230,7 +230,7 @@ namespace SyntaxSearch.Matchers
     /// </summary>
     public partial class AnythingMatcher : LogicalMatcher
     {
-        private string _name;
+        private readonly string _name;
 
         public override bool IsMatch(SyntaxNode node)
         {
@@ -317,7 +317,7 @@ namespace SyntaxSearch.Matchers
     /// <summary>
     /// Matches when node contains something that matches this
     /// </summary>
-    public class ContainsMatcher : LogicalMatcher
+    public partial class ContainsMatcher : LogicalMatcher
     {
         public override bool IsMatch(SyntaxNode node)
         {

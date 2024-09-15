@@ -3,6 +3,9 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Xml;
+using System.Xml.Schema;
+using System.Xml.Serialization;
 
 namespace SyntaxSearch.Matchers
 {
@@ -11,7 +14,7 @@ namespace SyntaxSearch.Matchers
         /// <summary>
         /// List of matchers for child nodes
         /// </summary>
-        List<INodeMatcher> Children { get; }
+        IReadOnlyList<INodeMatcher> Children { get; }
 
         /// <summary>
         /// Checks if <paramref name="node"/> matches this class's criteria
@@ -32,11 +35,14 @@ namespace SyntaxSearch.Matchers
         NodeAccept Accepts { get; set; }
 
         string ToTreeString();
+
+        internal void AddChild(INodeMatcher matcher);
     }
+
+    public interface IUnaryNodeMatcher { }
 
     public interface ITreeWalkNodeMatcher : INodeMatcher
     {
-
     }
 
     public enum NodeAccept
@@ -70,7 +76,8 @@ namespace SyntaxSearch.Matchers
 
     public abstract class BaseMatcher : ITreeWalkNodeMatcher, IEnumerable<INodeMatcher>
     {
-        public List<INodeMatcher> Children { get; } = [];
+        private readonly List<INodeMatcher> _children = [];
+        public IReadOnlyList<INodeMatcher> Children => _children;
 
         private CaptureStore _store;
         public CaptureStore Store
@@ -115,7 +122,12 @@ namespace SyntaxSearch.Matchers
 
         public void Add(INodeMatcher matcher)
         {
-            Children.Add(matcher);
+            _children.Add(matcher);
+        }
+
+        public void AddChild(INodeMatcher matcher)
+        {
+            _children.Add(matcher);
         }
 
         public IEnumerator<INodeMatcher> GetEnumerator()
