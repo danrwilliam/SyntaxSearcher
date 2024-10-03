@@ -112,7 +112,17 @@ namespace SyntaxSearchUnitTests.Matcher
                 var local = (LocalDeclarationStatementSyntax)second.Node;
                 Assert.That(local.Declaration.Variables[0].Identifier.Text, Is.EqualTo("f"));
             });
-            
+        }
+
+        [Test]
+        public void Constraint()
+        {
+            var matcher = SyntaxSearch.Framework.Is.LocalDeclarationStatement
+                .WithDeclaration(SyntaxSearch.Framework.Is.VariableDeclaration
+                    .WithType(SyntaxSearch.Framework.Is.PredefinedType));
+            var searcher = new Searcher(matcher);
+
+            Assert.That(searcher.Search(_root), Has.Exactly(2).Items);
         }
     }
 }

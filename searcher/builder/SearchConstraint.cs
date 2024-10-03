@@ -12,17 +12,6 @@ namespace SyntaxSearch.Framework
         {
         }
 
-        public Constraint Not
-        {
-            get
-            {
-                var copy = new Constraint
-                {
-                    _matcher = new NotMatcher()
-                };
-                return copy;
-            }
-        }
 
         public IEnumerable<SearchResult> Search(SyntaxNode node)
         {
@@ -34,21 +23,25 @@ namespace SyntaxSearch.Framework
         }
     }
 
-    public static class Does
+    //public static class Does
+    //{
+    //    public static MatchCapture Match(string name) => new MatchCapture(name);
+
+    //    public static ContainsMatcher Contain => new ContainsMatcher();
+    //}
+
+    public static partial class Is
     {
-        public static MatchCapture Match(string name) => new MatchCapture(name);
-
-        public static ContainsMatcher Contain => new ContainsMatcher();
-    }
-
-    public partial class Is
-    {
-        protected Is()
-        {
-        }
-
-        public Is Not => new Is();
-
-        //public Is Kind(SyntaxKind kind);
+        //public Constraint Not
+        //{
+        //    get
+        //    {
+        //        var copy = new Constraint
+        //        {
+        //            _matcher = new NotMatcher()
+        //        };
+        //        return copy;
+        //    }
+        //}
     }
 }

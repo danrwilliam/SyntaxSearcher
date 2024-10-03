@@ -658,6 +658,14 @@ namespace SyntaxSearch.Matchers
 
             var classes = GetKindToClassMap(context);
 
+            StringBuilder isBuilder = new StringBuilder();
+            isBuilder.AppendLine($@"using SyntaxSearch.Matchers.Explicit;
+
+namespace SyntaxSearch.Framework
+{{
+    public static partial class Is
+    {{");
+
             foreach (var entry in classes)
             {
                 var kind = entry.Key;
@@ -671,7 +679,7 @@ namespace SyntaxSearch.Matchers
 
                 if (associatedType is null)
                 {
-                    var slim = BuildClassNoOverrides(kind, null);
+                    var slim = BuildClassNoOverrides(kind, namedProperties: []);
                     string classTypeName = $"{kind.Name}.Matcher";
 
                     context.AddSource($"{classTypeName}.g.cs", Utilities.Normalize(slim));
@@ -718,8 +726,23 @@ namespace SyntaxSearch.Matchers
 
                     context.AddSource($"{kind.Name}.Matcher.g.cs", Utilities.Normalize(contents));
 
+                    if (info.Properties.Any())
+                    {
+                        isBuilder.AppendLine($"public static {info.ClassName} {kind.Name} => new {info.ClassName}();");
+                    }
+                    else
+                    {
+                        isBuilder.AppendLine($"public static SyntaxSearch.Matchers.{info.ClassName} {kind.Name} => new SyntaxSearch.Matchers.{info.ClassName}();");
+                    }
                 }
             }
+
+            // class
+            isBuilder.AppendLine("}");
+            // namespace
+            isBuilder.AppendLine("}");
+
+            context.AddSource($"Is.g.cs", Utilities.Normalize(isBuilder));
 
             return newTrees;
         }
@@ -805,6 +828,10 @@ namespace SyntaxSearch.Matchers
     }}
 }}
 ");
+                if (namedProperties.Any())
+                {
+                    GenerateExplicitMatcherClass(kind, className, [], namedProperties, builder, classes);
+                }
             }
 
 
