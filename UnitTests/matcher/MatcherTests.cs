@@ -48,7 +48,7 @@ namespace SyntaxSearchUnitTests.Matcher
         [Test]
         public void TestIdentifier()
         {
-            var searcher = new Searcher(new IdentifierNameMatcher(), new CaptureStore());
+            var searcher = new Searcher(new IdentifierNameMatcher());
             var found = searcher.Search(_root);
             Assert.That(found, Has.Exactly(_numIdentifierName).Items);
         }
@@ -56,7 +56,7 @@ namespace SyntaxSearchUnitTests.Matcher
         [Test]
         public void TestMethod()
         {
-            var searcher = new Searcher(new MethodDeclarationMatcher(), new CaptureStore());
+            var searcher = new Searcher(new MethodDeclarationMatcher());
             var found = searcher.Search(_root);
             Assert.That(found, Has.Exactly(_numMethods).Items);
         }
@@ -88,6 +88,31 @@ namespace SyntaxSearchUnitTests.Matcher
             var searcher = new Searcher(mult);
 
             Assert.That(searcher.Search(_root), Has.Exactly(1).Items);
+        }
+
+        [Test]
+        public void CaptureMultiple()
+        {
+            var matcher = new SyntaxSearch.Matchers.Explicit.LocalDeclarationStatementMatcher();
+            var searcher = new Searcher(matcher);
+            var results = searcher.Search(_root).ToArray();
+
+            Assert.Multiple(() =>
+            {
+                var first = results[0];
+                Assert.That(first.Node, Is.InstanceOf<LocalDeclarationStatementSyntax>());
+                var local = (LocalDeclarationStatementSyntax)first.Node;
+                Assert.That(local.Declaration.Variables[0].Identifier.Text, Is.EqualTo("a"));
+            });
+
+            Assert.Multiple(() =>
+            {
+                var second = results[1];
+                Assert.That(second.Node, Is.InstanceOf<LocalDeclarationStatementSyntax>());
+                var local = (LocalDeclarationStatementSyntax)second.Node;
+                Assert.That(local.Declaration.Variables[0].Identifier.Text, Is.EqualTo("f"));
+            });
+            
         }
     }
 }

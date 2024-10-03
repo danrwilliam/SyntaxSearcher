@@ -12,15 +12,17 @@ namespace SyntaxSearch.Matchers
     {
     }
 
+    public interface ILogicalMatcher : INodeMatcher { }
+
     public class ThisMatcher : BaseMatcher
     {
         public override NodeAccept Accepts { get => NodeAccept.Node; set { } }
 
-        public override bool IsMatch(SyntaxNode node)
+        public override bool IsMatch(SyntaxNode node, CaptureStore store)
         {
             foreach (var f in Children)
             {
-                if (!f.IsMatch(node))
+                if (!f.IsMatch(node, store))
                     return false;
             }
 
@@ -32,10 +34,17 @@ namespace SyntaxSearch.Matchers
     {
         private string _name;
 
-        public override bool IsMatch(SyntaxNode node)
+        public MatchCapture Named(string name)
+        {
+            var dup = new MatchCapture(name);
+            dup._name = name;
+            return dup;
+        }
+
+        public override bool IsMatch(SyntaxNode node, CaptureStore store)
         {
             if (!string.IsNullOrWhiteSpace(_name) 
-                && Store.CapturedGroups.TryGetValue(_name, out var capturedNode))
+                && store.CapturedGroups.TryGetValue(_name, out var capturedNode))
             {
                 if (capturedNode is VariableDeclaratorSyntax variableDeclSyntax
                     && node is IdentifierNameSyntax identifier)
@@ -56,7 +65,7 @@ namespace SyntaxSearch.Matchers
         public override NodeAccept Accepts { get => NodeAccept.Node; set { } }
         private SyntaxKind _scopeKind;
 
-        public override bool IsMatch(SyntaxNode node)
+        public override bool IsMatch(SyntaxNode node, CaptureStore store)
         {
             return node.Ancestors().FirstOrDefault(a => a.IsKind(_scopeKind)) != default;
         }
@@ -64,7 +73,7 @@ namespace SyntaxSearch.Matchers
 
     public abstract class GetExtraNodesMatcher : BaseMatcher
     {
-        public override bool IsMatch(SyntaxNode node)
+        public override bool IsMatch(SyntaxNode node, CaptureStore store)
         {
             SyntaxNode searchNode = SearchFrom(node);
             if (searchNode is null)
@@ -73,17 +82,17 @@ namespace SyntaxSearch.Matchers
 
             foreach (var extraChild in Children)
             {
-                var nestedSearcher = new Searcher(extraChild, new CaptureStore());
+                var nestedSearcher = new Searcher(extraChild);
                 foreach (var result in nestedSearcher.Search(searchNode))
                 {
-                    Store.AdditionalCaptures.Add(result.Node);
+                    store.AdditionalCaptures.Add(result.Node);
                 }
             }
 
-            return GetReturnValue();
+            return GetReturnValue(store);
         }
 
-        protected abstract bool GetReturnValue();
+        protected abstract bool GetReturnValue(CaptureStore store);
 
         protected abstract SyntaxNode SearchFrom(SyntaxNode node);
     }
@@ -106,11 +115,11 @@ namespace SyntaxSearch.Matchers
         /// </summary>
         protected bool _require = false;
 
-        protected override bool GetReturnValue()
+        protected override bool GetReturnValue(CaptureStore store)
         {
             if (_require)
             {
-                return Store.AdditionalCaptures.Any();
+                return store.AdditionalCaptures.Any();
             }
             else
             {
@@ -140,7 +149,7 @@ namespace SyntaxSearch.Matchers
         public override NodeAccept Accepts { get => NodeAccept.PostNode; set { } }
 
         protected SyntaxKind _ancestorKind;
-        public override bool IsMatch(SyntaxNode node)
+        public override bool IsMatch(SyntaxNode node, CaptureStore store)
         {
             SyntaxNode searchNode = SearchFrom(node);
             if (searchNode is null)
@@ -150,17 +159,17 @@ namespace SyntaxSearch.Matchers
             {
                 foreach (var extraChild in Children)
                 {
-                    var nestedSearcher = new Searcher(extraChild, new CaptureStore());
+                    var nestedSearcher = new Searcher(extraChild);
                     foreach (var result in nestedSearcher.Search(searchNode))
                     {
-                        Store.AdditionalCaptures.Add(result.Node);
+                        store.AdditionalCaptures.Add(result.Node);
                     }
                 }
 
-                if (Store.AdditionalCaptures.Any())
+                if (store.AdditionalCaptures.Any())
                 {
-                    Store.Override = Store.AdditionalCaptures.First();
-                    Store.AdditionalCaptures.Clear();
+                    store.Override = store.AdditionalCaptures.First();
+                    store.AdditionalCaptures.Clear();
                     return true;
                 }
                 else
@@ -170,7 +179,7 @@ namespace SyntaxSearch.Matchers
             }
             else
             {
-                Store.Override = searchNode;
+                store.Override = searchNode;
                 return true;
             }
         }
@@ -198,7 +207,7 @@ namespace SyntaxSearch.Matchers
     {
         public override NodeAccept Accepts { get => NodeAccept.Node; set { } }
 
-        public override bool IsMatch(SyntaxNode node)
+        public override bool IsMatch(SyntaxNode node, CaptureStore store)
         {
             return node.ChildNodes().Any();
         }
@@ -211,15 +220,15 @@ namespace SyntaxSearch.Matchers
     {
         public override NodeAccept Accepts { get => NodeAccept.Node; set { } }
 
-        public override bool IsMatch(SyntaxNode node)
+        public override bool IsMatch(SyntaxNode node, CaptureStore store)
         {
-            return !base.IsMatch(node);
+            return !base.IsMatch(node, store);
         }
     }
 
     public class NotNullMatcher : LogicalMatcher
     {
-        public override bool IsMatch(SyntaxNode node)
+        public override bool IsMatch(SyntaxNode node, CaptureStore store)
         {
             return node != null;
         }
@@ -232,16 +241,16 @@ namespace SyntaxSearch.Matchers
     {
         private readonly string _name;
 
-        public override bool IsMatch(SyntaxNode node)
+        public override bool IsMatch(SyntaxNode node, CaptureStore store)
         {
             if (!string.IsNullOrWhiteSpace(_name))
             {
-                Store.CapturedGroups.Add(_name, node);
+                store.CapturedGroups.Add(_name, node);
             }
 
             foreach (var child in Children)
             {
-                if (!child.IsMatch(node))
+                if (!child.IsMatch(node, store))
                 {
                     return false;
                 }
@@ -256,11 +265,11 @@ namespace SyntaxSearch.Matchers
     /// </summary>
     public class IsOneOfMatcher : LogicalMatcher
     {
-        public override bool IsMatch(SyntaxNode node)
+        public override bool IsMatch(SyntaxNode node, CaptureStore store)
         {
             foreach (var child in Children)
             {
-                if (child.IsMatch(node))
+                if (child.IsMatch(node, store))
                 {
                     return true;
                 }
@@ -273,11 +282,11 @@ namespace SyntaxSearch.Matchers
     {
         public override NodeAccept Accepts { get => NodeAccept.Node; set { } }
 
-        public override bool IsMatch(SyntaxNode node)
+        public override bool IsMatch(SyntaxNode node, CaptureStore store)
         {
             foreach (var child in Children)
             {
-                if (child.IsMatch(node))
+                if (child.IsMatch(node, store))
                 {
                     return true;
                 }
@@ -290,11 +299,11 @@ namespace SyntaxSearch.Matchers
     {
         public override NodeAccept Accepts { get => NodeAccept.Node; set { } }
 
-        public override bool IsMatch(SyntaxNode node)
+        public override bool IsMatch(SyntaxNode node, CaptureStore store)
         {
             foreach (var child in Children)
             {
-                if (!child.IsMatch(node))
+                if (!child.IsMatch(node, store))
                 {
                     return false;
                 }
@@ -308,9 +317,9 @@ namespace SyntaxSearch.Matchers
     /// </summary>
     public class NotMatcher : LogicalMatcher
     {
-        public override bool IsMatch(SyntaxNode node)
+        public override bool IsMatch(SyntaxNode node, CaptureStore store)
         {
-            return !Children[0].IsMatch(node);
+            return !Children[0].IsMatch(node, store);
         }
     }
 
@@ -319,12 +328,12 @@ namespace SyntaxSearch.Matchers
     /// </summary>
     public partial class ContainsMatcher : LogicalMatcher
     {
-        public override bool IsMatch(SyntaxNode node)
+        public override bool IsMatch(SyntaxNode node, CaptureStore store)
         {
-            if (Children[0].IsMatch(node))
+            if (Children[0].IsMatch(node, store))
             {
                 var other = Children.FirstOrDefault(f => f.Accepts == NodeAccept.PostNode);
-                if (other is null || other.IsMatch(node))
+                if (other is null || other.IsMatch(node, store))
                 {
                     return true;
                 }
@@ -332,10 +341,10 @@ namespace SyntaxSearch.Matchers
 
             foreach (var c in node.DescendantNodes(f => true))
             {
-                if (Children[0].IsMatch(c))
+                if (Children[0].IsMatch(c, store))
                 {
                     var other = Children.FirstOrDefault(f => f.Accepts == NodeAccept.PostNode);
-                    if (other is null || other.IsMatch(c))
+                    if (other is null || other.IsMatch(c, store))
                     {
                         return true;
                     }

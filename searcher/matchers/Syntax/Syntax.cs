@@ -18,18 +18,18 @@ namespace SyntaxSearch.Matchers
             _matchName = matchName;
         }
 
-        public override bool IsMatch(SyntaxNode node)
+        public override bool IsMatch(SyntaxNode node, CaptureStore store)
         {
-            if (!IsNodeMatch(node))
+            if (!IsNodeMatch(node, store))
                 return false;
 
             if (!string.IsNullOrEmpty(_matchName)
-                && Store.CapturedGroups.TryGetValue(_matchName, out var compareToNode))
+                && store.CapturedGroups.TryGetValue(_matchName, out var compareToNode))
             {
                 return CompareToCapturedNode(node, compareToNode);
             }
 
-            return DoChildrenMatch(node);
+            return DoChildrenMatch(node, store);
         }
 
         protected virtual bool CompareToCapturedNode(SyntaxNode node, SyntaxNode compareToNode)
@@ -37,12 +37,12 @@ namespace SyntaxSearch.Matchers
             return SyntaxFactory.AreEquivalent(node, compareToNode);
         }
 
-        protected virtual bool IsNodeMatch(SyntaxNode node)
+        protected virtual bool IsNodeMatch(SyntaxNode node, CaptureStore store)
         {
             return node.IsKind(_thisKind);
         }
 
-        protected virtual bool DoChildNodesMatch(SyntaxNode node)
+        protected virtual bool DoChildNodesMatch(SyntaxNode node, CaptureStore store)
         {
             IEnumerable<SyntaxNode> childNodes = node.ChildNodes();
 
@@ -56,10 +56,10 @@ namespace SyntaxSearch.Matchers
             if (matchers.Count() != childNodes.Count())
                 return false;
 
-            var zipped = Enumerable.Zip(matchers, childNodes, (m, c) => new { matcher = m, childNode = c });
-            foreach (var step in zipped)
+            var zipped = matchers.Zip(childNodes, (m, c) => (m ,c));
+            foreach (var (matcher, childNode) in zipped)
             {
-                if (!step.matcher.IsMatch(step.childNode))
+                if (!matcher.IsMatch(childNode, store))
                     return false;
 
             }
@@ -67,16 +67,16 @@ namespace SyntaxSearch.Matchers
             return true;
         }
 
-        protected virtual bool DoChildrenMatch(SyntaxNode node)
+        protected virtual bool DoChildrenMatch(SyntaxNode node, CaptureStore store)
         {
             // Run any checkers that operate on the current node
             foreach (var check in Children.Where(c => c.Accepts == NodeAccept.Node))
             {
-                if (!check.IsMatch(node))
+                if (!check.IsMatch(node, store))
                     return false;
             }
 
-            if (!DoChildNodesMatch(node))
+            if (!DoChildNodesMatch(node, store))
             {
                 return false;
             }
@@ -84,13 +84,13 @@ namespace SyntaxSearch.Matchers
             // run any-post condition checkers
             foreach (var post in Children.Where(c => c.Accepts == NodeAccept.PostNode))
             {
-                if (!post.IsMatch(node))
+                if (!post.IsMatch(node, store))
                     return false;
             }
 
             if (!string.IsNullOrWhiteSpace(_captureName))
             {
-                Store.CapturedGroups.Add(_captureName, node);
+                store.CapturedGroups.Add(_captureName, node);
             }
 
             return true;
@@ -108,6 +108,6 @@ namespace SyntaxSearch.Matchers
 
         }
 
-        protected abstract override bool DoChildNodesMatch(SyntaxNode node);
+        protected abstract override bool DoChildNodesMatch(SyntaxNode node, CaptureStore store);
     }
 }

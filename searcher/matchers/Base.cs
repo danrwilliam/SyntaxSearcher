@@ -21,12 +21,7 @@ namespace SyntaxSearch.Matchers
         /// </summary>
         /// <param name="node">node to examine</param>
         /// <returns>node matches criteria</returns>
-        bool IsMatch(SyntaxNode node);
-
-        /// <summary>
-        /// Stores additional captured nodes found during search
-        /// </summary>
-        CaptureStore Store { get; set; }
+        bool IsMatch(SyntaxNode node, CaptureStore store);
 
         /// <summary>
         /// Specifies what node should be passed
@@ -79,28 +74,9 @@ namespace SyntaxSearch.Matchers
         private readonly List<INodeMatcher> _children = [];
         public IReadOnlyList<INodeMatcher> Children => _children;
 
-        private CaptureStore _store;
-        public CaptureStore Store
-        {
-            get => _store;
-            set
-            {
-                _store = value;
-                SetStore(value);
-            }
-        }
-
-        protected virtual void SetStore(CaptureStore store)
-        {
-            foreach (var c in Children)
-            {
-                c.Store = _store;
-            }
-        }
-
         public virtual NodeAccept Accepts { get; set; } = NodeAccept.Node;
 
-        public abstract bool IsMatch(SyntaxNode node);
+        public abstract bool IsMatch(SyntaxNode node, CaptureStore store);
 
         public string ToTreeString()
         {

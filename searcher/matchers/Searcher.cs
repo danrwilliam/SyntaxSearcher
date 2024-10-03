@@ -13,27 +13,16 @@ namespace SyntaxSearch
     {
         private readonly INodeMatcher _match;
 
-        public CaptureStore Store { get; protected set; }
-
         public INodeMatcher Matcher => _match;
 
         /// <summary>
         /// </summary>
         /// <param name="root">match object</param>
         public Searcher(INodeMatcher root)
-            : this(root, root?.Store ?? new())
-        {
-        }
-
-        public Searcher(INodeMatcher root, CaptureStore store)
         {
             _match = root;
-            Store = store; 
-            if (_match.Store is null)
-            {
-                _match.Store = store;
-            }
         }
+
 
         public string ToTreeString()
         {
@@ -46,23 +35,25 @@ namespace SyntaxSearch
         /// <returns>result object with the matching node, additional node, and any captured nodes</returns>
         public IEnumerable<SearchResult> Search(SyntaxNode node)
         {
-            Store.Reset();
+            CaptureStore store = new CaptureStore();
 
             // check passed in node first
-            if (_match.IsMatch(node))
+            if (_match.IsMatch(node, store))
             {
-                var result = new SearchResult(Store.Override ?? node, Store.AdditionalCaptures, Store.CapturedGroups);
+                var result = new SearchResult(store.Override ?? node, store.AdditionalCaptures, store.CapturedGroups);
                 yield return result;
+                store.Reset();
             }
 
             foreach (var dNode in node.DescendantNodes(c => true))
             {
-                Store.Reset();
+                store.Reset();
 
-                if (_match.IsMatch(dNode))
+                if (_match.IsMatch(dNode, store))
                 {
-                    var result = new SearchResult(Store.Override ?? dNode, Store.AdditionalCaptures, Store.CapturedGroups);
+                    var result = new SearchResult(store.Override ?? dNode, store.AdditionalCaptures, store.CapturedGroups);
                     yield return result;
+                    store.Reset();
                 }
             }
         }
