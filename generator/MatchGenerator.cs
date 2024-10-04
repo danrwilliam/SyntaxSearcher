@@ -535,6 +535,37 @@ namespace SyntaxSearch.Parser
                 return false;
             }
 
+            Dictionary<string, StringBuilder> staticBuilders = new();
+            void add(AttributeData attribute, INamedTypeSymbol returnType, string ctor)
+            {
+                var target = attribute.AttributeClass.Name.Replace("Attribute", "");
+                if (!staticBuilders.TryGetValue(target, out var builder))
+                {
+                    builder = staticBuilders[target] = new StringBuilder();
+                    builder.AppendLine($@"
+using SyntaxSearch.Matchers;
+
+namespace SyntaxSearch.Framework
+{{
+    public static partial class {target}
+    {{
+");
+                }
+
+                string methodName;
+                if (attribute.ConstructorArguments.FirstOrDefault() is { Value: string v }
+                    && !string.IsNullOrWhiteSpace(v))
+                {
+                    methodName = v;
+                }
+                else
+                {
+                    methodName = returnType.Name.Replace("Matcher", "");
+                }
+
+                builder.AppendLine($@"public static {returnType.ToDisplayString()} {methodName} => {ctor};");
+            }
+
             foreach (var classDecl in _receiver.Collected)
             {
                 var model = context.Compilation.GetSemanticModel(classDecl.SyntaxTree);
@@ -542,6 +573,8 @@ namespace SyntaxSearch.Parser
 
                 var stringType = model.Compilation.GetSpecialType(SpecialType.System_String);
                 var boolType = model.Compilation.GetSpecialType(SpecialType.System_Boolean);
+
+                var methodAttribute = model.Compilation.GetTypeByMetadataName("SyntaxSearch.Framework.MethodAttribute");
 
                 var classType = model.GetDeclaredSymbol(classDecl);
 
@@ -560,9 +593,13 @@ namespace SyntaxSearch.Parser
 
                 string[] constructorArgs = [.. fields.Select(f => $"{f.Type.ToDisplayString()} {f.Name.Trim('_')}")];
 
-
                 bool generate = classDecl.Modifiers.Any(m => m.IsKind(SyntaxKind.PartialKeyword))
                     || classType.GetMembers().OfType<IMethodSymbol>().Any(m => m.MethodKind == MethodKind.Constructor && !m.IsImplicitlyDeclared);
+
+                if (classType.GetAttributes().FirstOrDefault(p => p.AttributeClass.IsSubclassOf(methodAttribute)) is { } attribute)
+                {
+                    add(attribute, classType, $"new {classType.ToDisplayString()}()");
+                }
 
                 if (generate)
                 {
@@ -634,6 +671,12 @@ namespace SyntaxSearch.Matchers
                     builder.AppendLine("}");
                     context.AddSource($"{classType.Name}.Ctor.g.cs", Utilities.Normalize(builder));
                 }
+            }
+
+            foreach (var kvp in staticBuilders)
+            {
+                kvp.Value.AppendLine("}}");
+                context.AddSource($"{kvp.Key}.Partial.g.cs", Utilities.Normalize(kvp.Value));
             }
         }
 
@@ -742,7 +785,7 @@ namespace SyntaxSearch.Framework
             // namespace
             isBuilder.AppendLine("}");
 
-            context.AddSource($"Is.g.cs", Utilities.Normalize(isBuilder));
+            context.AddSource($"Is.Syntax.g.cs", Utilities.Normalize(isBuilder));
 
             return newTrees;
         }
@@ -872,7 +915,7 @@ namespace SyntaxSearch.Matchers
                     }}");
 
 
-                    builderMethods.AppendLine($@"public {kind.Name}Matcher With{namedProp.Name}(IEnumerable<INodeMatcher> matcher)
+                    builderMethods.AppendLine($@"public {kind.Name}Matcher With{namedProp.Name}(params INodeMatcher[] matcher)
                     {{
                         if (matcher is null)
                         {{

@@ -1,6 +1,7 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using SyntaxSearch.Framework;
 using System.Linq;
 
 namespace SyntaxSearch.Matchers
@@ -30,6 +31,7 @@ namespace SyntaxSearch.Matchers
         }
     }
 
+    //[Does("Match")]
     public partial class MatchCapture : BaseMatcher
     {
         private string _name;
@@ -60,6 +62,7 @@ namespace SyntaxSearch.Matchers
         }
     }
 
+    //[Is]
     public partial class WithinMatcher : BaseMatcher
     {
         public override NodeAccept Accepts { get => NodeAccept.Node; set { } }
@@ -234,12 +237,24 @@ namespace SyntaxSearch.Matchers
         }
     }
 
+    [Is]
+    public class NullMatcher : LogicalMatcher
+    {
+        public override bool IsMatch(SyntaxNode node, CaptureStore store)
+        {
+            return node is null;
+        }
+    }
+
     /// <summary>
     /// Accepts anything as a match
     /// </summary>
+    [Is]
     public partial class AnythingMatcher : LogicalMatcher
     {
         private readonly string _name;
+
+        public AnythingMatcher() { }
 
         public override bool IsMatch(SyntaxNode node, CaptureStore store)
         {
@@ -257,6 +272,16 @@ namespace SyntaxSearch.Matchers
             }
 
             return true;
+        }
+
+        public AnythingMatcher Capture(string name)
+        {
+            var matcher = new AnythingMatcher(name);
+            foreach (var c in Children)
+            {
+                matcher.AddChild(c);
+            }
+            return matcher;
         }
     }
 
@@ -326,8 +351,18 @@ namespace SyntaxSearch.Matchers
     /// <summary>
     /// Matches when node contains something that matches this
     /// </summary>
+    [Does("Contain")]
     public partial class ContainsMatcher : LogicalMatcher
     {
+        internal ContainsMatcher()
+        {
+        }
+
+        public ContainsMatcher(INodeMatcher matcher)
+        {
+            AddChild(matcher);
+        }
+
         public override bool IsMatch(SyntaxNode node, CaptureStore store)
         {
             if (Children[0].IsMatch(node, store))
