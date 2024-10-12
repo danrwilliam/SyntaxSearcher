@@ -6,7 +6,7 @@ using System.Collections.Generic;
 namespace SyntaxSearch.Framework
 {
     [AttributeUsage(AttributeTargets.Class)]
-    public class MethodAttribute(string name = null) : Attribute
+    public abstract class MethodAttribute(string name = null) : Attribute
     {
         public string Name { get; } = name;
     }
@@ -16,21 +16,6 @@ namespace SyntaxSearch.Framework
 
     public static partial class Is
     {
-        public static SyntaxSearch.Matchers.Explicit.SimpleMemberAccessExpressionMatcher BaseAccess
-        {
-            get
-            {
-                return Is.SimpleMemberAccessExpression.WithExpression(Is.BaseExpression);
-            }
-        }
-
-        public static SyntaxSearch.Matchers.Explicit.SimpleMemberAccessExpressionMatcher ThisAccess
-        {
-            get
-            {
-                return Is.SimpleMemberAccessExpression.WithExpression(Is.ThisExpression);
-            }
-        }
     }
 
     public static partial class Does

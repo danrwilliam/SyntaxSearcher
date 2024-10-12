@@ -76,7 +76,7 @@ namespace SyntaxSearchUnitTests.Build
             options.NamedChildren = true;
             _builder.Build(statementExpr, options);
 
-            Assert.That(searcher.Search(statementExpr).Count(), Is.EqualTo(1), $"\"{statementExpr}\" should be found in explicit mode");
+            Assert.That(searcher.Search(statementExpr), Has.Exactly(1).Items, $"\"{statementExpr}\" should be found in explicit mode");
             Assert.That(searcher.Search(SyntaxFactory.ParseStatement(alsoMatch)).Count(), Is.EqualTo(1), $"\"{alsoMatch}\" should also be found in explicit mode");
             Assert.That(searcher.Search(SyntaxFactory.ParseStatement(wontMatch)).Count(), Is.EqualTo(0), $"\"{wontMatch}\" should not be found in explicit mode");
         }

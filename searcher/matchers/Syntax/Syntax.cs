@@ -1,10 +1,27 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using SyntaxSearch.Framework;
 using System.Collections.Generic;
 using System.Linq;
 
 namespace SyntaxSearch.Matchers
 {
+    public class TokenMatcher
+    {
+        private SyntaxKind _kind;
+
+        public TokenMatcher(SyntaxKind kind)
+        {
+            _kind = kind;
+        }
+
+        public bool IsMatch(SyntaxToken token)
+        {
+            return token.IsKind(_kind);
+        }
+    }
+
     public abstract class NodeMatcher : BaseMatcher
     {
         protected SyntaxKind _thisKind;
@@ -109,5 +126,49 @@ namespace SyntaxSearch.Matchers
         }
 
         protected abstract override bool DoChildNodesMatch(SyntaxNode node, CaptureStore store);
+    }
+
+    [Is]
+    public partial class BaseAccessExpressionMatcher : BaseMatcher
+    {
+        public override bool IsMatch(SyntaxNode node, CaptureStore store)
+        {
+            if (node is MemberAccessExpressionSyntax member)
+            {
+                var left = member.Expression;
+                while (left is MemberAccessExpressionSyntax m)
+                {
+                    left = m;
+                }
+
+                return left is BaseExpressionSyntax;
+            }
+            else
+            {
+                return false;
+            }
+        }
+    }
+
+    [Is]
+    public partial class ThisAccessExpressionMatcher : BaseMatcher
+    {
+        public override bool IsMatch(SyntaxNode node, CaptureStore store)
+        {
+            if (node is MemberAccessExpressionSyntax member)
+            {
+                var left = member.Expression;
+                while (left is MemberAccessExpressionSyntax m)
+                {
+                    left = m;
+                }
+
+                return left is ThisExpressionSyntax;
+            }
+            else
+            {
+                return false;
+            }
+        }
     }
 }

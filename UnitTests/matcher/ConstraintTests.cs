@@ -30,7 +30,6 @@ namespace SyntaxSearchUnitTests.Matcher
         public void IfStatementInvocation(string source, int expected)
         {
             var expr = SyntaxFactory.ParseStatement(source);
-
             var match = SyntaxSearch.Framework.Is.IfStatement
                 .WithCondition(SyntaxSearch.Framework.Is.NotEqualsExpression
                     .WithLeft(SyntaxSearch.Framework.Is.Anything.Capture("obj"))
@@ -45,6 +44,20 @@ namespace SyntaxSearchUnitTests.Matcher
             var search = new Searcher(match);
 
             Assert.That(search.Search(expr), Has.Exactly(expected).Items);
+        }
+
+        [TestCase("1 + 1000", 1)]
+        [TestCase("1.43 + 433.1", 1)]
+        [TestCase("1 + b", 0)]
+        [TestCase("1 - b", 0)]
+        public void Add(string source, int expected)
+        {
+            var match = SyntaxSearch.Framework.Is.AddExpression
+                .WithLeft(SyntaxSearch.Framework.Is.NumericLiteralExpression)
+                .WithRight(SyntaxSearch.Framework.Is.NumericLiteralExpression);
+            var expr = SyntaxFactory.ParseExpression(source);
+            var searcher = new Searcher(match);
+            Assert.That(searcher.Search(expr), Has.Exactly(expected).Items);
         }
     }
 }

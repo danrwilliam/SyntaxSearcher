@@ -6,6 +6,21 @@ using System.Linq;
 
 namespace SyntaxSearch
 {
+    public static class Extensions
+    {
+        public static IEnumerable<SearchResult> Search(this INodeMatcher matcher, SyntaxNode node)
+        {
+            var searcher = new Searcher(matcher);
+            return searcher.Search(node);
+        }
+
+        public static bool IsMatch(this INodeMatcher matcher, SyntaxNode node)
+        {
+            var searcher = new Searcher(matcher);
+            return searcher.IsMatch(node);
+        }
+    }
+
     /// <summary>
     /// Searches a SyntaxNode tree for matches
     /// </summary>
@@ -57,38 +72,33 @@ namespace SyntaxSearch
                 }
             }
         }
+
+        public bool IsMatch(SyntaxNode node) => _match.IsMatch(node, new());
     }
 
-    public class SearchResult
+    /// <summary>
+    /// Create a new SearchResult object
+    /// </summary>
+    /// <param name="node"></param>
+    /// <param name="additional">this argument is cloned with a shallow copy</param>
+    /// <param name="captures">this argument is cloned with a shallow copy</param>
+    public class SearchResult(SyntaxNode node,
+                              IEnumerable<SyntaxNode> additional,
+                              Dictionary<string, SyntaxNode> captures)
     {
         /// <summary>
         /// Node that matches the search criteria
         /// </summary>
-        public SyntaxNode Node { get; private set; }
+        public SyntaxNode Node { get; } = node;
 
         /// <summary>
         /// Additional nodes that were found by the search criteria
         /// </summary>
-        public SyntaxNode[] AdditionalNodes { get; private set; }
+        public SyntaxNode[] AdditionalNodes { get; } = additional.Any() ? additional.ToArray() : [];
 
         /// <summary>
         /// Named capture nodes
         /// </summary>
-        public Dictionary<string, SyntaxNode> Captured { get; private set; }
-
-        /// <summary>
-        /// Create a new SearchResult object
-        /// </summary>
-        /// <param name="node"></param>
-        /// <param name="additional">this argument is cloned with a shallow copy</param>
-        /// <param name="captures">this argument is cloned with a shallow copy</param>
-        public SearchResult(SyntaxNode node,
-                            IEnumerable<SyntaxNode> additional,
-                            Dictionary<string, SyntaxNode> captures)
-        {
-            Node = node;
-            AdditionalNodes = additional.Any() ? additional.ToArray() : Array.Empty<SyntaxNode>();
-            Captured = new Dictionary<string, SyntaxNode>(captures);
-        }
+        public Dictionary<string, SyntaxNode> Captured { get; } = new Dictionary<string, SyntaxNode>(captures);
     }
 }
