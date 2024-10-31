@@ -2,39 +2,58 @@
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using SyntaxSearch.Framework;
+using System;
+using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 
 namespace SyntaxSearch.Matchers
 {
     /// <summary>
-    /// Represents a matcher that operates on its child matcher
+    /// Generate a With method for marked field
     /// </summary>
-    public abstract class LogicalMatcher : BaseMatcher
+    [AttributeUsage(AttributeTargets.Field)]
+    internal sealed class WithAttribute : Attribute;
+
+    public abstract class LogicalMatcher : BaseMatcher, ILogicalMatcher
     {
+        public ImmutableArray<INodeMatcher> Matchers { get; private set;  } = [];
+
+        protected LogicalMatcher(params INodeMatcher[] matchers)
+        {
+            Matchers = Matchers.AddRange(matchers);
+        }
+
+        internal void AddChild(INodeMatcher matcher)
+        {
+            Matchers = Matchers.Add(matcher);
+        }
     }
 
     public interface ILogicalMatcher : INodeMatcher { }
 
-    public class ThisMatcher : BaseMatcher
-    {
-        public override NodeAccept Accepts { get => NodeAccept.Node; set { } }
+    //public class ThisMatcher : BaseMatcher
+    //{
+    //    public override NodeAccept Accepts { get => NodeAccept.Node; set { } }
 
-        public override bool IsMatch(SyntaxNode node, CaptureStore store)
-        {
-            foreach (var f in Children)
-            {
-                if (!f.IsMatch(node, store))
-                    return false;
-            }
+    //    public override bool IsMatch(SyntaxNode node, CaptureStore store)
+    //    {
+    //        foreach (var f in Children)
+    //        {
+    //            if (!f.IsMatch(node, store))
+    //                return false;
+    //        }
 
-            return true;
-        }
-    }
+    //        return true;
+    //    }
+    //}
 
     //[Does("Match")]
-    public partial class MatchCapture : BaseMatcher
+    public partial class MatchCapture : INodeMatcher
     {
         private string _name;
+
+        public NodeAccept Accepts { get; set; }
 
         public MatchCapture Named(string name)
         {
@@ -43,7 +62,7 @@ namespace SyntaxSearch.Matchers
             return dup;
         }
 
-        public override bool IsMatch(SyntaxNode node, CaptureStore store)
+        public bool IsMatch(SyntaxNode node, CaptureStore store)
         {
             if (!string.IsNullOrWhiteSpace(_name) 
                 && store.CapturedGroups.TryGetValue(_name, out var capturedNode))
@@ -74,6 +93,7 @@ namespace SyntaxSearch.Matchers
         }
     }
 
+    /*
     public abstract class GetExtraNodesMatcher : BaseMatcher
     {
         public override bool IsMatch(SyntaxNode node, CaptureStore store)
@@ -202,6 +222,7 @@ namespace SyntaxSearch.Matchers
             return searchNode;
         }
     }
+    */
 
     /// <summary>
     /// Requires node to have children
@@ -229,18 +250,22 @@ namespace SyntaxSearch.Matchers
         }
     }
 
-    public class NotNullMatcher : LogicalMatcher
+    public class NotNullMatcher : INodeMatcher
     {
-        public override bool IsMatch(SyntaxNode node, CaptureStore store)
+        public NodeAccept Accepts { get; set; }
+
+        public bool IsMatch(SyntaxNode node, CaptureStore store)
         {
-            return node != null;
+            return node is not null;
         }
     }
 
     [Is]
-    public class NullMatcher : LogicalMatcher
+    public class NullMatcher : INodeMatcher
     {
-        public override bool IsMatch(SyntaxNode node, CaptureStore store)
+        public NodeAccept Accepts { get; set; }
+
+        public bool IsMatch(SyntaxNode node, CaptureStore store)
         {
             return node is null;
         }
@@ -250,49 +275,43 @@ namespace SyntaxSearch.Matchers
     /// Accepts anything as a match
     /// </summary>
     [Is]
-    public partial class AnythingMatcher : LogicalMatcher
+    public partial class AnythingMatcher : INodeMatcher
     {
+        [With]
         private readonly string _name;
 
-        public AnythingMatcher() { }
+        public static AnythingMatcher Default { get; } = new AnythingMatcher();
 
-        public override bool IsMatch(SyntaxNode node, CaptureStore store)
+        public AnythingMatcher()
         {
-            if (!string.IsNullOrWhiteSpace(_name))
-            {
-                store.CapturedGroups.Add(_name, node);
-            }
-
-            foreach (var child in Children)
-            {
-                if (!child.IsMatch(node, store))
-                {
-                    return false;
-                }
-            }
-
-            return true;
         }
 
         public AnythingMatcher Capture(string name)
         {
-            var matcher = new AnythingMatcher(name);
-            foreach (var c in Children)
+            return new AnythingMatcher(name);
+        }
+
+        public NodeAccept Accepts { get; set; }
+
+        public bool IsMatch(SyntaxNode node, CaptureStore store)
+        {
+            if (_name is not null)
             {
-                matcher.AddChild(c);
+                store.CapturedGroups.Add(_name, node);
             }
-            return matcher;
+            return true;
         }
     }
 
     /// <summary>
     /// Node must match one of this matcher's child matcher
     /// </summary>
-    public class IsOneOfMatcher : LogicalMatcher
+    [Is("OneOf")]
+    public class IsOneOfMatcher(params INodeMatcher[] matchers) : LogicalMatcher(matchers)
     {
         public override bool IsMatch(SyntaxNode node, CaptureStore store)
         {
-            foreach (var child in Children)
+            foreach (var child in Matchers)
             {
                 if (child.IsMatch(node, store))
                 {
@@ -303,30 +322,14 @@ namespace SyntaxSearch.Matchers
         }
     }
 
-    public class OrMatcher : LogicalMatcher
+    [Is]
+    public class AndMatcher(params INodeMatcher[] matchers) : LogicalMatcher(matchers)
     {
         public override NodeAccept Accepts { get => NodeAccept.Node; set { } }
 
         public override bool IsMatch(SyntaxNode node, CaptureStore store)
         {
-            foreach (var child in Children)
-            {
-                if (child.IsMatch(node, store))
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
-    }
-
-    public class AndMatcher : LogicalMatcher
-    {
-        public override NodeAccept Accepts { get => NodeAccept.Node; set { } }
-
-        public override bool IsMatch(SyntaxNode node, CaptureStore store)
-        {
-            foreach (var child in Children)
+            foreach (var child in Matchers)
             {
                 if (!child.IsMatch(node, store))
                 {
@@ -340,53 +343,64 @@ namespace SyntaxSearch.Matchers
     /// <summary>
     /// Inverts match state of children
     /// </summary>
-    public class NotMatcher : LogicalMatcher
+    public sealed class NotMatcher : INodeMatcher
     {
-        public override bool IsMatch(SyntaxNode node, CaptureStore store)
+        public NodeAccept Accepts { get; set; }
+
+        private readonly INodeMatcher _matcher;
+
+        public NotMatcher(INodeMatcher matcher)
         {
-            return !Children[0].IsMatch(node, store);
+            _matcher = matcher;
+        }
+
+        public NotMatcher() { }
+
+        public bool IsMatch(SyntaxNode node, CaptureStore store)
+        {
+            return !_matcher.IsMatch(node);
         }
     }
 
     /// <summary>
     /// Matches when node contains something that matches this
     /// </summary>
-    [Does("Contain")]
-    public partial class ContainsMatcher : LogicalMatcher
-    {
-        internal ContainsMatcher()
-        {
-        }
+    //[Does("Contain")]
+    //public partial class ContainsMatcher : LogicalMatcher
+    //{
+    //    internal ContainsMatcher()
+    //    {
+    //    }
 
-        public ContainsMatcher(INodeMatcher matcher)
-        {
-            AddChild(matcher);
-        }
+    //    public ContainsMatcher(INodeMatcher matcher)
+    //    {
+    //        AddChild(matcher);
+    //    }
 
-        public override bool IsMatch(SyntaxNode node, CaptureStore store)
-        {
-            if (Children[0].IsMatch(node, store))
-            {
-                var other = Children.FirstOrDefault(f => f.Accepts == NodeAccept.PostNode);
-                if (other is null || other.IsMatch(node, store))
-                {
-                    return true;
-                }
-            }
+    //    public override bool IsMatch(SyntaxNode node, CaptureStore store)
+    //    {
+    //        if (Children[0].IsMatch(node, store))
+    //        {
+    //            var other = Children.FirstOrDefault(f => f.Accepts == NodeAccept.PostNode);
+    //            if (other is null || other.IsMatch(node, store))
+    //            {
+    //                return true;
+    //            }
+    //        }
 
-            foreach (var c in node.DescendantNodes(f => true))
-            {
-                if (Children[0].IsMatch(c, store))
-                {
-                    var other = Children.FirstOrDefault(f => f.Accepts == NodeAccept.PostNode);
-                    if (other is null || other.IsMatch(c, store))
-                    {
-                        return true;
-                    }
-                }
-            }
+    //        foreach (var c in node.DescendantNodes(f => true))
+    //        {
+    //            if (Children[0].IsMatch(c, store))
+    //            {
+    //                var other = Children.FirstOrDefault(f => f.Accepts == NodeAccept.PostNode);
+    //                if (other is null || other.IsMatch(c, store))
+    //                {
+    //                    return true;
+    //                }
+    //            }
+    //        }
 
-            return false;
-        }
-    }
+    //        return false;
+    //    }
+    //}
 }

@@ -33,7 +33,7 @@ namespace SyntaxSearchUnitTests.Build
                 NewLineChars = String.Empty,
             };
 
-            var writer = XmlTextWriter.Create(memStream, settings);
+            var writer = XmlWriter.Create(memStream, settings);
 
             _builder.Document.Save(writer);
 

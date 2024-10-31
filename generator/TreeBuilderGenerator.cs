@@ -33,6 +33,7 @@ namespace SyntaxSearcher.Generators
             var methods = entryType.GetAllMembers().OfType<IMethodSymbol>().Where(m => m.IsVirtual).ToArray();
 
             var syntaxNodeType = context.Compilation.GetTypeByMetadataName(typeof(SyntaxNode).FullName);
+            var syntaxTokenType = context.Compilation.GetTypeByMetadataName(typeof(SyntaxToken).FullName);
 
             StringBuilder text = new();
 
@@ -56,7 +57,7 @@ namespace SyntaxSearcher.Generators
 
                 var parameterType = method.Parameters[0].Type;
                 bool started = false;
-                var namedProperties = Helpers.GetNamedProperties(parameterType, syntaxNodeType);
+                var namedProperties = Helpers.GetNamedProperties(parameterType, syntaxNodeType, syntaxTokenType);
 
                 static void createHeaderIfNeeded(StringBuilder builder, IMethodSymbol m, ITypeSymbol type, ref bool start)
                 {
@@ -108,6 +109,9 @@ if (node.{property.Name} != default)
                         }
                         else
                         {
+                            bool isToken = property.Type.Name == nameof(SyntaxToken);
+                            string visit = isToken ? "" : $"Visit(node.{property.Name});";
+
                             text.AppendLine($@"
 
 if (node.{property.Name} != null)
@@ -118,7 +122,7 @@ if (node.{property.Name} != null)
 
     _current = n;
 
-    Visit(node.{property.Name});
+    {visit}
 
     _current = parent;
 }}

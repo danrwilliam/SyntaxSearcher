@@ -1,6 +1,7 @@
 ﻿using Microsoft.CodeAnalysis;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
 using System.Xml;
@@ -11,11 +12,6 @@ namespace SyntaxSearch.Matchers
 {
     public interface INodeMatcher
     {
-        /// <summary>
-        /// List of matchers for child nodes
-        /// </summary>
-        IReadOnlyList<INodeMatcher> Children { get; }
-
         /// <summary>
         /// Checks if <paramref name="node"/> matches this class's criteria
         /// </summary>
@@ -28,16 +24,26 @@ namespace SyntaxSearch.Matchers
         /// to <see cref="IsMatch(SyntaxNode)"/>
         /// </summary>
         NodeAccept Accepts { get; set; }
-
-        string ToTreeString();
-
-        internal void AddChild(INodeMatcher matcher);
     }
 
-    public interface IUnaryNodeMatcher { }
+    public interface ITokenMatcher
+    {
+        /// <summary>
+        /// Checks if <paramref name="token"/> matches this class's criteria
+        /// </summary>
+        /// <param name="token">token to examine</param>
+        /// <returns>if token matches criteria</returns>
+        bool IsMatch(SyntaxToken token, CaptureStore store);
+    }
 
     public interface ITreeWalkNodeMatcher : INodeMatcher
     {
+        /// <summary>
+        /// List of matchers for child nodes
+        /// </summary>
+        ImmutableArray<INodeMatcher> Children { get; }
+
+        internal void AddChild(INodeMatcher matcher);
     }
 
     public enum NodeAccept
@@ -69,51 +75,10 @@ namespace SyntaxSearch.Matchers
         }
     }
 
-    public abstract class BaseMatcher : ITreeWalkNodeMatcher, IEnumerable<INodeMatcher>
+    public abstract class BaseMatcher : INodeMatcher
     {
-        private readonly List<INodeMatcher> _children = [];
-        public IReadOnlyList<INodeMatcher> Children => _children;
-
         public virtual NodeAccept Accepts { get; set; } = NodeAccept.Node;
 
         public abstract bool IsMatch(SyntaxNode node, CaptureStore store);
-
-        public string ToTreeString()
-        {
-            StringBuilder builder = new();
-
-            ToTreeString(builder, 0);
-
-            return builder.ToString();
-        }
-
-        internal void ToTreeString(StringBuilder builder, int level)
-        {
-            builder.AppendLine($"{"".PadLeft(level, ' ')}{this.GetType().Name}");
-            foreach (var c in Children.Cast<BaseMatcher>())
-            {
-                c.ToTreeString(builder, level + 1);
-            }
-        }
-
-        public void Add(INodeMatcher matcher)
-        {
-            _children.Add(matcher);
-        }
-
-        public void AddChild(INodeMatcher matcher)
-        {
-            _children.Add(matcher);
-        }
-
-        public IEnumerator<INodeMatcher> GetEnumerator()
-        {
-            return Children.AsEnumerable().GetEnumerator();
-        }
-
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return Children.AsEnumerable().GetEnumerator();
-        }
     }
 }

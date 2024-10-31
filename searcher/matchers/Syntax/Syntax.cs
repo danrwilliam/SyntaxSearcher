@@ -2,37 +2,46 @@
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using SyntaxSearch.Framework;
+using System.Collections;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 
 namespace SyntaxSearch.Matchers
 {
-    public class TokenMatcher
-    {
-        private SyntaxKind _kind;
-
-        public TokenMatcher(SyntaxKind kind)
-        {
-            _kind = kind;
-        }
-
-        public bool IsMatch(SyntaxToken token)
-        {
-            return token.IsKind(_kind);
-        }
-    }
-
-    public abstract class NodeMatcher : BaseMatcher
+    public abstract class NodeMatcher : BaseMatcher, ITreeWalkNodeMatcher, IEnumerable<INodeMatcher>
     {
         protected SyntaxKind _thisKind;
         protected string _captureName;
         protected string _matchName;
+
+        public ImmutableArray<INodeMatcher> Children { get; private set; } = [];
 
         protected NodeMatcher(SyntaxKind kind, string captureName, string matchName)
         {
             _thisKind = kind;
             _captureName = captureName;
             _matchName = matchName;
+        }
+
+        public void Add(INodeMatcher matcher)
+        {
+            Children = Children.Add(matcher);
+        }
+
+        public void AddChild(INodeMatcher matcher)
+        {
+            Children = Children.Add(matcher);
+        }
+
+        public IEnumerator<INodeMatcher> GetEnumerator()
+        {
+            return Children.AsEnumerable().GetEnumerator();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return Children.AsEnumerable().GetEnumerator();
         }
 
         public override bool IsMatch(SyntaxNode node, CaptureStore store)
@@ -61,24 +70,22 @@ namespace SyntaxSearch.Matchers
 
         protected virtual bool DoChildNodesMatch(SyntaxNode node, CaptureStore store)
         {
-            IEnumerable<SyntaxNode> childNodes = node.ChildNodes();
-
-            var matchers = Children.Where(c => c.Accepts == NodeAccept.Child);
+            ImmutableArray<SyntaxNode> childNodes = [.. node.ChildNodes()];
+            ImmutableArray<INodeMatcher> childMatchers = [..Children.Where(c => c.Accepts == NodeAccept.Child)];
 
             // if there aren't any child matchers, treat that as a match
-            if (!matchers.Any())
+            if (!childMatchers.Any())
                 return true;
 
             // should be same number of matchers as child nodes 
-            if (matchers.Count() != childNodes.Count())
+            if (childMatchers.Length != childNodes.Length)
                 return false;
 
-            var zipped = matchers.Zip(childNodes, (m, c) => (m ,c));
+            var zipped = childMatchers.Zip(childNodes, (m, c) => (m ,c));
             foreach (var (matcher, childNode) in zipped)
             {
                 if (!matcher.IsMatch(childNode, store))
                     return false;
-
             }
 
             return true;
@@ -112,20 +119,40 @@ namespace SyntaxSearch.Matchers
 
             return true;
         }
+
     }
 
-    public abstract class ExplicitNodeMatcher : NodeMatcher
+    public abstract class ExplicitNodeMatcher(string captureName, string matchName) : BaseMatcher
     {
-        protected ExplicitNodeMatcher(SyntaxKind kind, string captureName, string matchName) : base(kind, captureName, matchName)
+        private readonly string _captureName = captureName;
+        private readonly string _matchName = matchName;
+
+        protected ExplicitNodeMatcher(ExplicitNodeMatcher copy) : this(copy._captureName, copy._matchName)
         {
         }
 
-        protected ExplicitNodeMatcher(ExplicitNodeMatcher copy) : base(copy._thisKind, copy._captureName, copy._matchName)
+        public override bool IsMatch(SyntaxNode node, CaptureStore store)
         {
+            if (!IsNodeMatch(node, store))
+                return false;
 
+            if (!string.IsNullOrEmpty(_matchName)
+                && store.CapturedGroups.TryGetValue(_matchName, out var compareToNode))
+            {
+                return CompareToCapturedNode(node, compareToNode);
+            }
+
+            return DoChildrenMatch(node, store);
         }
 
-        protected abstract override bool DoChildNodesMatch(SyntaxNode node, CaptureStore store);
+        protected virtual bool CompareToCapturedNode(SyntaxNode node, SyntaxNode compareToNode)
+        {
+            return SyntaxFactory.AreEquivalent(node, compareToNode);
+        }
+
+        protected abstract bool IsNodeMatch(SyntaxNode node, CaptureStore store);
+
+        protected abstract bool DoChildrenMatch(SyntaxNode node, CaptureStore store);
     }
 
     [Is]

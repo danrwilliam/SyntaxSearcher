@@ -24,25 +24,12 @@ namespace SyntaxSearch
     /// <summary>
     /// Searches a SyntaxNode tree for matches
     /// </summary>
-    public class Searcher
+    /// <remarks>
+    /// </remarks>
+    /// <param name="matcher">match object</param>
+    public class Searcher(INodeMatcher matcher)
     {
-        private readonly INodeMatcher _match;
-
-        public INodeMatcher Matcher => _match;
-
-        /// <summary>
-        /// </summary>
-        /// <param name="root">match object</param>
-        public Searcher(INodeMatcher root)
-        {
-            _match = root;
-        }
-
-
-        public string ToTreeString()
-        {
-            return _match.ToTreeString();
-        }
+        public INodeMatcher Matcher { get; } = matcher;
 
         /// <summary>
         /// </summary>
@@ -53,7 +40,7 @@ namespace SyntaxSearch
             CaptureStore store = new CaptureStore();
 
             // check passed in node first
-            if (_match.IsMatch(node, store))
+            if (Matcher.IsMatch(node, store))
             {
                 var result = new SearchResult(store.Override ?? node, store.AdditionalCaptures, store.CapturedGroups);
                 yield return result;
@@ -64,7 +51,7 @@ namespace SyntaxSearch
             {
                 store.Reset();
 
-                if (_match.IsMatch(dNode, store))
+                if (Matcher.IsMatch(dNode, store))
                 {
                     var result = new SearchResult(store.Override ?? dNode, store.AdditionalCaptures, store.CapturedGroups);
                     yield return result;
@@ -73,7 +60,12 @@ namespace SyntaxSearch
             }
         }
 
-        public bool IsMatch(SyntaxNode node) => _match.IsMatch(node, new());
+        /// <summary>
+        /// Checks if the given node is a match
+        /// </summary>
+        /// <param name="node"></param>
+        /// <returns></returns>
+        public bool IsMatch(SyntaxNode node) => Matcher.IsMatch(node, new());
     }
 
     /// <summary>
