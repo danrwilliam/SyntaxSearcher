@@ -45,5 +45,7 @@ namespace SyntaxSearch.Matchers
             }
             return true;
         }
+
+        public static implicit operator TokenMatcher(SyntaxKind kind) => Default.WithKind(kind);
     }
 }

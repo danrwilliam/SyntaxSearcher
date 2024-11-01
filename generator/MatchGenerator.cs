@@ -1083,6 +1083,15 @@ namespace SyntaxSearch.Matchers
                     }
                     else
                     {
+                        if (isToken)
+                        {
+                            builderMethods.AppendLine($@"
+                        public {kind.Name}Matcher With{namedProp.Name}({typeof(SyntaxKind).FullName} kind) 
+                        {{ 
+                            return this.With{namedProp.Name}((TokenMatcher)kind);
+                        }}");
+                        }
+
                         builderMethods.AppendLine($@"
                         public {kind.Name}Matcher With{namedProp.Name}({matchType} matcher) 
                         {{ 
