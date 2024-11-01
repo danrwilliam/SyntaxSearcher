@@ -1,5 +1,6 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using System.Collections.Generic;
 using System.Text;
 
 namespace SyntaxSearcher.Generators
@@ -47,6 +48,32 @@ namespace SyntaxSearcher.Generators
                 return true;
 
             return typeSymbol.BaseType.IsSubclassOf(candidateBase);
+        }
+
+        public static IEnumerable<ITypeSymbol> BaseTypes(this ITypeSymbol t)
+        {
+            t = t?.BaseType;
+            while (t is not null)
+            {
+                yield return t;
+                t = t.BaseType;
+            }
+        }
+
+        public static string GetMatcherBase(this ITypeSymbol t)
+        {
+            if (t.IsAbstract && !t.Name.StartsWith("Base"))
+            {
+                return $"SyntaxSearch.Matchers.Explicit.{t.Name}Matcher";
+            }
+            else if (t.Name == nameof(SyntaxToken))
+            {
+                return "ITokenMatcher";
+            }
+            else
+            {
+                return "INodeMatcher";
+            }
         }
     }
 }

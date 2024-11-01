@@ -65,8 +65,8 @@ namespace SyntaxSearchUnitTests.Matcher
         public void TestExplicitIdentifier()
         {
             var mult = Is.MultiplyAssignmentExpression
-                .WithLeft(new IdentifierNameMatcher(identifier: "a"))
-                .WithRight(new IdentifierNameMatcher(identifier: "f"));
+                .WithLeft(Is.IdentifierName.WithIdentifier(Is.Identifier.WithText("a")))
+                .WithRight(Is.IdentifierName.WithIdentifier(Is.Identifier.WithText("f")));
 
             var searcher = new Searcher(mult);
 

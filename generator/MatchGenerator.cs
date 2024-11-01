@@ -6,6 +6,7 @@ using System.Linq;
 using System.Collections.Immutable;
 using System.Collections.Generic;
 using System.Text;
+using Microsoft.CodeAnalysis.Text;
 
 namespace SyntaxSearcher.Generators
 {
@@ -44,11 +45,15 @@ namespace SyntaxSearcher.Generators
         {
             var generated = GenerateMatcherClasses(context);
 
-            CompletePartialClasses(context);
+            {
+                var injected = context.Compilation.AddSyntaxTrees(
+                    generated.Select(g => SyntaxFactory.ParseSyntaxTree(SourceText.From(g.Item2), context.ParseOptions, $"{g.Item1.ClassName}.g.cs")));
+                CompletePartialClasses(context, injected);
+            }
 
             CreateIsTokenMethods(context);
 
-            GenerateParser(context, generated);
+            GenerateParser(context, [.. generated.Select(g => g.Item1)]);
         }
 
         private void CreateIsTokenMethods(GeneratorExecutionContext context)
@@ -82,11 +87,11 @@ namespace SyntaxSearch.Framework
                         SpecialType.System_Int64,
                     ];
 
-                    b.AppendLine($@"public static TokenMatcher {kind.Name} => TokenMatcher.Default.WithKind(SyntaxKind.{kind.Name});");
+                    b.AppendLine($"public static TokenMatcher {kind.Name} => TokenMatcher.Default.WithKind(SyntaxKind.{kind.Name});");
                     foreach (var numeric in types)
                     {
                         var t = context.Compilation.GetSpecialType(numeric);
-                        b.AppendLine($@"public static TokenMatcher Number({t.ToDisplayString()} value) => Is.{kind.Name}.WithValue(value);");
+                        b.AppendLine($"public static TokenMatcher Number({t.ToDisplayString()} value) => Is.{kind.Name}.WithValue(value);");
                     }
                 }
                 else if (kind.Name == nameof(SyntaxKind.StringLiteralToken))
@@ -99,7 +104,7 @@ namespace SyntaxSearch.Framework
                 }
                 else
                 {
-                    b.AppendLine($@"public static TokenMatcher {kind.Name} => TokenMatcher.Default.WithKind(SyntaxKind.{kind.Name});");
+                    b.AppendLine($"public static TokenMatcher {kind.Name} => TokenMatcher.Default.WithKind(SyntaxKind.{kind.Name});");
                 }
             }
 
@@ -109,14 +114,14 @@ namespace SyntaxSearch.Framework
             context.AddSource("Is.Token.cs", Utilities.Normalize(b));
         }
 
-        public static Dictionary<IFieldSymbol, INamedTypeSymbol> GetKindToClassMap(GeneratorExecutionContext context)
+        public static (Dictionary<IFieldSymbol, INamedTypeSymbol>, HashSet<INamedTypeSymbol>) GetKindToClassMap(GeneratorExecutionContext context)
         {
             return GenerateMap(context);
         }
         public static Dictionary<INamedTypeSymbol, IFieldSymbol> GetClassToKindMap(GeneratorExecutionContext context)
         {
             var classToKind = new Dictionary<INamedTypeSymbol, IFieldSymbol>(SymbolEqualityComparer.Default);
-            foreach (var kvp in GenerateMap(context))
+            foreach (var kvp in GenerateMap(context).Item1)
             {
                 classToKind[kvp.Value] = kvp.Key;
             }
@@ -128,7 +133,7 @@ namespace SyntaxSearch.Framework
         /// it's associated with.
         /// </summary>
         /// <param name="context">generator context</param>
-        public static Dictionary<IFieldSymbol, INamedTypeSymbol> GenerateMap(GeneratorExecutionContext context)
+        public static (Dictionary<IFieldSymbol, INamedTypeSymbol>, HashSet<INamedTypeSymbol>) GenerateMap(GeneratorExecutionContext context)
         {
             var kindToClass = new Dictionary<IFieldSymbol, INamedTypeSymbol>(SymbolEqualityComparer.Default);
 
@@ -138,8 +143,6 @@ namespace SyntaxSearch.Framework
                                                              .OfType<IFieldSymbol>()
                                                              .Where(f => f.HasConstantValue && f.ConstantValue is ushort v && v > 0)
                                                              .ToArray();
-
-            var abstractClasses = new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
 
             string namespaceString = string.Join(".", typeof(ClassDeclarationSyntax).FullName.Split('.').Reverse().Skip(1).Reverse());
 
@@ -166,14 +169,18 @@ namespace SyntaxSearch.Framework
                 }
 
                 kindToClass[kind] = associatedType;
-                if (associatedType is { BaseType.IsAbstract: true, BaseType: INamedTypeSymbol abs }
-                    && !abs.Name.StartsWith("Base"))
-                {
-                    abstractClasses.Add(abs);
-                }
             }
 
-            return kindToClass;
+            HashSet<INamedTypeSymbol> abstractTypes = new(
+                kindToClass
+                    .Values
+                    .SelectMany(b => b.BaseTypes())
+                    .Distinct<ITypeSymbol>(SymbolEqualityComparer.Default)
+                    .OfType<INamedTypeSymbol>()
+                    .Where(t => t.IsAbstract && !t.Name.StartsWith("Base")),
+                SymbolEqualityComparer.Default);
+
+            return (kindToClass, abstractTypes);
         }
 
         private void GenerateParser(GeneratorExecutionContext context, List<SyntaxClassInfo> withClasses)
@@ -420,6 +427,8 @@ namespace SyntaxSearch.Parser
                         }
                         else
                         {
+                            var matcher = property.Type.GetMatcherBase();
+
                             builder.AppendLine($@"{{
                                 if (matcher.{property.Name} != null)
                                     throw new ArgumentException($""expected only 1 matcher for {property.Name}"");
@@ -437,9 +446,18 @@ namespace SyntaxSearch.Parser
                                 }}
 
                                 if (childMatcher is null)
-                                    throw new ArgumentException($""unable to build matcher for {{child.Name}}"");
-                                matcher.{property.Name} = childMatcher; 
-}}");
+                                    throw new ArgumentException($""unable to build matcher for {{child.Name}}"");");
+
+                            if (matcher is not ("ITokenMatcher" or "INodeMatcher"))
+                            {
+                                builder.AppendLine($"matcher.{property.Name} = childMatcher.For<{matcher}>();");
+                            }
+                            else
+                            {
+
+                                builder.AppendLine($"matcher.{property.Name} = childMatcher;");
+                            }
+                            builder.AppendLine("}");
                         }
                         builder.AppendLine("break;");
                     }
@@ -512,6 +530,8 @@ namespace SyntaxSearch.Parser
                 if (!classType.AllInterfaces.Any(intf => SymbolEqualityComparer.Default.Equals(intf, interfaceType)))
                     continue;
                 if (classType.IsAbstract || classType.TypeKind != TypeKind.Class)
+                    continue;
+                if (classType.GetAttributes().Any(attr => attr.AttributeClass.Name == "ExcludeAttribute"))
                     continue;
 
                 types.Add((classType, classDecl, classType.Name.Replace("Matcher", "")));
@@ -610,9 +630,10 @@ namespace SyntaxSearch.Parser
             }
         }
 
-        private void CompletePartialClasses(GeneratorExecutionContext context)
+        private void CompletePartialClasses(GeneratorExecutionContext context, Compilation injectedCompilation)
         {
-            var baseMatcher = context.Compilation.GetTypeByMetadataName("SyntaxSearch.Matchers.BaseMatcher");
+            Compilation compilation = injectedCompilation;
+            var baseMatcher = compilation.GetTypeByMetadataName("SyntaxSearch.Matchers.BaseMatcher");
 
             bool isOverrideWithProperties(INamedTypeSymbol type, INamedTypeSymbol stringType)
             {
@@ -667,17 +688,17 @@ namespace SyntaxSearch.Framework
 
                 if (arguments is { HasValue: true, Value: not "" or null })
                 {
-                    builder.AppendLine($@"public static {returnType.ToDisplayString()} {methodName}({arguments.Value}) => {ctor};");
+                    builder.AppendLine($"public static {returnType.ToDisplayString()} {methodName}({arguments.Value}) => {ctor};");
                 }
                 else
                 {
-                    builder.AppendLine($@"public static {returnType.ToDisplayString()} {methodName} => {ctor};");
+                    builder.AppendLine($"public static {returnType.ToDisplayString()} {methodName} => {ctor};");
                 }
             }
 
             foreach (var classDecl in _receiver.Collected)
             {
-                var model = context.Compilation.GetSemanticModel(classDecl.SyntaxTree);
+                var model = compilation.GetSemanticModel(classDecl.SyntaxTree);
                 var interfaceType = model.Compilation.GetTypeByMetadataName("SyntaxSearch.Matchers.INodeMatcher");
 
                 var stringType = model.Compilation.GetSpecialType(SpecialType.System_String);
@@ -709,7 +730,7 @@ namespace SyntaxSearch.Framework
                 {
                     string ctor;
                     string arguments;
-                    if (classType.AllInterfaces.Any(intf => intf.Name == "ILogicalMatcher"))
+                    if (classType.AllInterfaces.Any(intf => intf.Name == "ICompoundLogicalMatcher"))
                     {
                         ctor = $"new {classType.ToDisplayString()}(matchers)";
                         arguments = "params INodeMatcher[] matchers";
@@ -802,7 +823,7 @@ namespace SyntaxSearch.Matchers
             }
         }
 
-        private List<SyntaxClassInfo> GenerateMatcherClasses(GeneratorExecutionContext context)
+        private List<(SyntaxClassInfo, string)> GenerateMatcherClasses(GeneratorExecutionContext context)
         {
             var syntaxKinds = context.Compilation.GetTypeByMetadataName(typeof(SyntaxKind).FullName)
                                                              .GetMembers()
@@ -812,7 +833,7 @@ namespace SyntaxSearch.Matchers
 
             string namespaceString = string.Join(".", typeof(ClassDeclarationSyntax).FullName.Split('.').Reverse().Skip(1).Reverse());
 
-            List<SyntaxClassInfo> newTrees = [];
+            List<(SyntaxClassInfo, string)> newTrees = [];
 
             StringBuilder map = new();
 
@@ -822,7 +843,9 @@ namespace SyntaxSearch.Matchers
 
             Dictionary<INamedTypeSymbol, string> typeToClassMap = new(SymbolEqualityComparer.Default);
 
-            var classes = GetKindToClassMap(context);
+            (var classes, var abstractClasses) = GetKindToClassMap(context);
+
+            BuildAbstractMatcherClasses(context, abstractClasses);
 
             StringBuilder isBuilder = new StringBuilder();
             isBuilder.AppendLine($@"using SyntaxSearch.Matchers.Explicit;
@@ -848,9 +871,10 @@ namespace SyntaxSearch.Framework
                     var slim = BuildClassNoOverrides(kind, namedProperties: []);
                     string classTypeName = $"{kind.Name}.Matcher";
 
-                    context.AddSource($"{classTypeName}.g.cs", Utilities.Normalize(slim));
+                    string source = Utilities.Normalize(slim);
+                    context.AddSource($"{classTypeName}.g.cs", source);
 
-                    newTrees.Add(info);
+                    newTrees.Add((info, source));
                 }
                 else
                 {
@@ -875,22 +899,22 @@ namespace SyntaxSearch.Framework
                         }
                     }
 
-                    string contents;
-
                     info.Properties = [.. namedProperties];
                     info.Fields = [.. fields];
-                    newTrees.Add(info);
 
+                    string contents;
                     if (fields.Any())
                     {
-                        contents = BuildClass(kind, associatedType.Name, fields, namedProperties, classes);
+                        contents = BuildClass(kind, associatedType, fields, namedProperties, classes);
                     }
                     else
                     {
-                        contents = BuildClassNoOverrides(kind, associatedType.Name, namedProperties, classes);
+                        contents = BuildClassNoOverrides(kind, associatedType, namedProperties, classes);
                     }
 
-                    context.AddSource($"{kind.Name}.Matcher.g.cs", Utilities.Normalize(contents));
+                    string source = Utilities.Normalize(contents);
+                    context.AddSource($"{kind.Name}.Matcher.g.cs", source);
+                    newTrees.Add((info, source));
 
                     if (info.Properties.Any())
                     {
@@ -913,17 +937,61 @@ namespace SyntaxSearch.Framework
             return newTrees;
         }
 
+        private void BuildAbstractMatcherClasses(GeneratorExecutionContext context, HashSet<INamedTypeSymbol> abstractClasses)
+        {
+            var explicitMatcher = context.Compilation.GetTypeByMetadataName("SyntaxSearch.Matchers.ExplicitNodeMatcher");
+
+            foreach (var abstractClass in abstractClasses)
+            {
+                string name = $"{abstractClass.Name}Matcher";
+
+                string baseType = abstractClasses.Contains(abstractClass.BaseType)
+                    ? $"{abstractClass.BaseType.Name}Matcher"
+                    : "ExplicitNodeMatcher";
+
+                StringBuilder builder = new();
+                builder.AppendLine($@"
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Xml;
+using System.Collections.Immutable;
+
+
+namespace SyntaxSearch.Matchers.Explicit
+{{
+    public abstract class {name} : {baseType}
+    {{
+        protected {name}(string captureName, string matchName) : base(captureName, matchName)
+        {{
+        }}
+
+        protected {name}({name} copy) : base(copy)
+        {{
+        }}
+    }}
+}}
+");
+                context.AddSource($"{name}.g.cs", Utilities.Normalize(builder));
+            }
+        }
+
         private static string GenerateFieldName(string kvp)
         {
             return $"_{char.ToLower(kvp[0])}{kvp.Substring(1)}";
         }
 
         private string BuildClassNoOverrides(ISymbol kind,
-                                             string className = null,
+                                             INamedTypeSymbol classType = null,
                                              MatchProperty[] namedProperties = null,
                                              IReadOnlyDictionary<IFieldSymbol, INamedTypeSymbol> classes = null)
         {
             StringBuilder builder = new();
+            string className = classType?.Name; 
 
             if (className != null)
             {
@@ -964,7 +1032,7 @@ namespace SyntaxSearch.Matchers
 
                 if (namedProperties.Any())
                 {
-                    GenerateExplicitMatcherClass(kind, className, [], namedProperties, builder, classes);
+                    GenerateExplicitMatcherClass(kind, classType, [], namedProperties, builder, classes);
                 }
             }
             else
@@ -996,7 +1064,7 @@ namespace SyntaxSearch.Matchers
 ");
                 if (namedProperties.Any())
                 {
-                    GenerateExplicitMatcherClass(kind, className, [], namedProperties, builder, classes);
+                    GenerateExplicitMatcherClass(kind, classType, [], namedProperties, builder, classes);
                 }
             }
 
@@ -1005,15 +1073,23 @@ namespace SyntaxSearch.Matchers
         }
 
         private static void GenerateExplicitMatcherClass(ISymbol kind,
-                                                         string className,
+                                                         INamedTypeSymbol classType,
                                                          List<MatchField> fields,
                                                          MatchProperty[] namedProperties,
                                                          StringBuilder builder,
                                                          IReadOnlyDictionary<IFieldSymbol, INamedTypeSymbol> classes)
         {
+            string className = classType.Name;
+
+            string baseType = classType.BaseType switch
+            {
+                { IsAbstract: true } bt when !bt.Name.StartsWith("Base") => $"{bt.Name}Matcher",
+                _ => "ExplicitNodeMatcher"
+            };
+
             builder.AppendLine("namespace SyntaxSearch.Matchers.Explicit {");
 
-            builder.AppendLine($"public class {kind.Name}Matcher : ExplicitNodeMatcher {{");
+            builder.AppendLine($"public class {kind.Name}Matcher : {baseType} {{");
 
             foreach (var i in fields)
             {
@@ -1055,9 +1131,15 @@ namespace SyntaxSearch.Matchers
                 else
                 {
                     bool isToken = namedProp.Type.Name == nameof(SyntaxToken);
-                    string matchType = isToken ? "ITokenMatcher" : "INodeMatcher";
 
-                    builder.AppendLine($"public {matchType} {namedProp.Name} {{ get; internal set; }}");
+                    (string matchType, string propertyType) = namedProp.Type switch
+                    {
+                        { Name: nameof(SyntaxToken) } => ("ITokenMatcher", "ITokenMatcher"),
+                        { IsAbstract: true } t when !t.Name.StartsWith("Base") => ($"{t.Name}Matcher", $"LogicalOrNodeMatcher<{t.Name}Matcher>"),
+                        _ => ("INodeMatcher", "INodeMatcher")
+                    };
+
+                    builder.AppendLine($"public {propertyType} {namedProp.Name} {{ get; internal set; }}");
 
                     KeyValuePair<IFieldSymbol, INamedTypeSymbol> p = classes.FirstOrDefault(p => SymbolEqualityComparer.Default.Equals(p.Value, namedProp.Type));
 
@@ -1100,9 +1182,19 @@ namespace SyntaxSearch.Matchers
                                 {namedProp.Name} = matcher
                             }};
                         }}");
+
+                        if (matchType != propertyType)
+                        {
+                            builderMethods.AppendLine($@"
+                        public {kind.Name}Matcher With{namedProp.Name}(ILogicalMatcher matcher) 
+                        {{ 
+                            return new {kind.Name}Matcher(this)
+                            {{
+                                {namedProp.Name} = new {propertyType}(matcher)
+                            }};
+                        }}");
+                        }
                     }
-
-
                 }
             }
 
@@ -1133,6 +1225,7 @@ namespace SyntaxSearch.Matchers
             {{");
             foreach (var f in fields)
             {
+                // TODO
             }
             foreach ((var namedProp, _) in namedProperties)
             {
@@ -1225,11 +1318,13 @@ namespace SyntaxSearch.Matchers
         private string NewLine => NewLineLazy.Value;
 
         private string BuildClass(ISymbol kind,
-                                  string className,
+                                  INamedTypeSymbol classType,
                                   List<MatchField> fields,
                                   MatchProperty[] namedProperties,
                                   IReadOnlyDictionary<IFieldSymbol, INamedTypeSymbol> classes)
         {
+            string className = classType.Name;
+
             string constructorArgs = string.Join(
                 ", ",
                 [.. fields.Select(i => $"{i.TypeName} {i.FieldName.TrimStart('_')} = default"), "string captureName = null, string matchCapture = null"]);
@@ -1266,16 +1361,6 @@ namespace SyntaxSearch.Matchers
             builder.AppendLine($@"
         }}
 
-        public {kind.Name}Matcher({className} node) : base(SyntaxKind.{kind.Name}, null, null)
-        {{
-            if (!node.IsKind(SyntaxKind.{kind.Name}))
-            {{
-                throw new ArgumentException($""expected {{nameof(node)}} to be of kind {kind.Name}, but got {{node.Kind().ToString()}}"");
-            }}
-
-{string.Join(NewLine, fields.Select(i => $"            {i.FieldName} = node.{i.TokenName}.{i.TokenValue};"))}            
-        }}
-
         protected override bool IsNodeMatch(SyntaxNode node, CaptureStore store)
         {{
             if (!base.IsNodeMatch(node, store))
@@ -1301,7 +1386,7 @@ namespace SyntaxSearch.Matchers
 
             if (namedProperties.Any())
             {
-                GenerateExplicitMatcherClass(kind, className, fields, namedProperties, builder, classes);
+                GenerateExplicitMatcherClass(kind, classType, fields, namedProperties, builder, classes);
             }
 
             return Utilities.Normalize(builder);

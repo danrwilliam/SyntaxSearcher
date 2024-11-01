@@ -3,7 +3,6 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using SyntaxSearch.Framework;
 using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 
@@ -15,11 +14,13 @@ namespace SyntaxSearch.Matchers
     [AttributeUsage(AttributeTargets.Field)]
     internal sealed class WithAttribute : Attribute;
 
-    public abstract class LogicalMatcher : BaseMatcher, ILogicalMatcher
-    {
-        public ImmutableArray<INodeMatcher> Matchers { get; private set;  } = [];
+    public abstract class LogicalMatcher : BaseMatcher, ILogicalMatcher;
 
-        protected LogicalMatcher(params INodeMatcher[] matchers)
+    public abstract class MultipleOperandLogicalMatcher : LogicalMatcher, ICompoundLogicalMatcher
+    {
+        public ImmutableArray<INodeMatcher> Matchers { get; private set; } = [];
+
+        protected MultipleOperandLogicalMatcher(params INodeMatcher[] matchers)
         {
             Matchers = Matchers.AddRange(matchers);
         }
@@ -30,7 +31,19 @@ namespace SyntaxSearch.Matchers
         }
     }
 
+    /// <summary>
+    /// A matcher that doesn't operate directly on the syntax node
+    /// </summary>
     public interface ILogicalMatcher : INodeMatcher { }
+
+    /// <summary>
+    /// A matcher that contains a collection of matchers to attempt
+    /// to match on the given syntax node
+    /// </summary>
+    public interface ICompoundLogicalMatcher : ILogicalMatcher
+    {
+        public ImmutableArray<INodeMatcher> Matchers { get; }
+    }
 
     //public class ThisMatcher : BaseMatcher
     //{
@@ -49,7 +62,7 @@ namespace SyntaxSearch.Matchers
     //}
 
     //[Does("Match")]
-    public partial class MatchCapture : INodeMatcher
+    public partial class MatchCapture : ILogicalMatcher
     {
         private string _name;
 
@@ -250,22 +263,19 @@ namespace SyntaxSearch.Matchers
         }
     }
 
-    public class NotNullMatcher : INodeMatcher
+    [Is]
+    public class NotNullMatcher : LogicalMatcher
     {
-        public NodeAccept Accepts { get; set; }
-
-        public bool IsMatch(SyntaxNode node, CaptureStore store)
+        public override bool IsMatch(SyntaxNode node, CaptureStore store)
         {
             return node is not null;
         }
     }
 
     [Is]
-    public class NullMatcher : INodeMatcher
+    public class NullMatcher : LogicalMatcher
     {
-        public NodeAccept Accepts { get; set; }
-
-        public bool IsMatch(SyntaxNode node, CaptureStore store)
+        public override bool IsMatch(SyntaxNode node, CaptureStore store)
         {
             return node is null;
         }
@@ -275,7 +285,7 @@ namespace SyntaxSearch.Matchers
     /// Accepts anything as a match
     /// </summary>
     [Is]
-    public partial class AnythingMatcher : INodeMatcher
+    public partial class AnythingMatcher : LogicalMatcher
     {
         [With]
         private readonly string _name;
@@ -291,9 +301,7 @@ namespace SyntaxSearch.Matchers
             return new AnythingMatcher(name);
         }
 
-        public NodeAccept Accepts { get; set; }
-
-        public bool IsMatch(SyntaxNode node, CaptureStore store)
+        public override bool IsMatch(SyntaxNode node, CaptureStore store)
         {
             if (_name is not null)
             {
@@ -307,7 +315,7 @@ namespace SyntaxSearch.Matchers
     /// Node must match one of this matcher's child matcher
     /// </summary>
     [Is("OneOf")]
-    public class IsOneOfMatcher(params INodeMatcher[] matchers) : LogicalMatcher(matchers)
+    public class IsOneOfMatcher(params INodeMatcher[] matchers) : MultipleOperandLogicalMatcher(matchers)
     {
         public override bool IsMatch(SyntaxNode node, CaptureStore store)
         {
@@ -323,7 +331,7 @@ namespace SyntaxSearch.Matchers
     }
 
     [Is]
-    public class AndMatcher(params INodeMatcher[] matchers) : LogicalMatcher(matchers)
+    public class AndMatcher(params INodeMatcher[] matchers) : MultipleOperandLogicalMatcher(matchers)
     {
         public override NodeAccept Accepts { get => NodeAccept.Node; set { } }
 
@@ -343,10 +351,8 @@ namespace SyntaxSearch.Matchers
     /// <summary>
     /// Inverts match state of children
     /// </summary>
-    public sealed class NotMatcher : INodeMatcher
+    public sealed class NotMatcher : LogicalMatcher
     {
-        public NodeAccept Accepts { get; set; }
-
         private readonly INodeMatcher _matcher;
 
         public NotMatcher(INodeMatcher matcher)
@@ -356,7 +362,7 @@ namespace SyntaxSearch.Matchers
 
         public NotMatcher() { }
 
-        public bool IsMatch(SyntaxNode node, CaptureStore store)
+        public override bool IsMatch(SyntaxNode node, CaptureStore store)
         {
             return !_matcher.IsMatch(node);
         }

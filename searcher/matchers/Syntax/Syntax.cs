@@ -1,7 +1,5 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using SyntaxSearch.Framework;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Immutable;
@@ -74,7 +72,7 @@ namespace SyntaxSearch.Matchers
             ImmutableArray<INodeMatcher> childMatchers = [..Children.Where(c => c.Accepts == NodeAccept.Child)];
 
             // if there aren't any child matchers, treat that as a match
-            if (!childMatchers.Any())
+            if (childMatchers.IsEmpty)
                 return true;
 
             // should be same number of matchers as child nodes 
@@ -120,82 +118,5 @@ namespace SyntaxSearch.Matchers
             return true;
         }
 
-    }
-
-    public abstract class ExplicitNodeMatcher(string captureName, string matchName) : BaseMatcher
-    {
-        private readonly string _captureName = captureName;
-        private readonly string _matchName = matchName;
-
-        protected ExplicitNodeMatcher(ExplicitNodeMatcher copy) : this(copy._captureName, copy._matchName)
-        {
-        }
-
-        public override bool IsMatch(SyntaxNode node, CaptureStore store)
-        {
-            if (!IsNodeMatch(node, store))
-                return false;
-
-            if (!string.IsNullOrEmpty(_matchName)
-                && store.CapturedGroups.TryGetValue(_matchName, out var compareToNode))
-            {
-                return CompareToCapturedNode(node, compareToNode);
-            }
-
-            return DoChildrenMatch(node, store);
-        }
-
-        protected virtual bool CompareToCapturedNode(SyntaxNode node, SyntaxNode compareToNode)
-        {
-            return SyntaxFactory.AreEquivalent(node, compareToNode);
-        }
-
-        protected abstract bool IsNodeMatch(SyntaxNode node, CaptureStore store);
-
-        protected abstract bool DoChildrenMatch(SyntaxNode node, CaptureStore store);
-    }
-
-    [Is]
-    public partial class BaseAccessExpressionMatcher : BaseMatcher
-    {
-        public override bool IsMatch(SyntaxNode node, CaptureStore store)
-        {
-            if (node is MemberAccessExpressionSyntax member)
-            {
-                var left = member.Expression;
-                while (left is MemberAccessExpressionSyntax m)
-                {
-                    left = m;
-                }
-
-                return left is BaseExpressionSyntax;
-            }
-            else
-            {
-                return false;
-            }
-        }
-    }
-
-    [Is]
-    public partial class ThisAccessExpressionMatcher : BaseMatcher
-    {
-        public override bool IsMatch(SyntaxNode node, CaptureStore store)
-        {
-            if (node is MemberAccessExpressionSyntax member)
-            {
-                var left = member.Expression;
-                while (left is MemberAccessExpressionSyntax m)
-                {
-                    left = m;
-                }
-
-                return left is ThisExpressionSyntax;
-            }
-            else
-            {
-                return false;
-            }
-        }
     }
 }
