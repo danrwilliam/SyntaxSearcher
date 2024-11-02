@@ -13,7 +13,7 @@ namespace SyntaxSearcher.Generators
     [Generator]
     public class MatcherGenerator : ISourceGenerator
     {
-        private static ImmutableArray<string> IgnoreKinds = ImmutableArray.Create("Token", "Keyword", "Trivia");
+        private static ImmutableArray<string> IgnoreKinds = ImmutableArray.Create("Keyword", "Trivia");
         private SyntaxCollector<ClassDeclarationSyntax> _receiver;
 
         /// <summary>
@@ -38,7 +38,9 @@ namespace SyntaxSearcher.Generators
             {nameof(SyntaxKind.PointerMemberAccessExpression), nameof(MemberAccessExpressionSyntax) },
             {nameof(SyntaxKind.IndexExpression), nameof(PrefixUnaryExpressionSyntax) },
             {nameof(SyntaxKind.UncheckedExpression), nameof(CheckedExpressionSyntax) },
-            {nameof(SyntaxKind.ObjectInitializerExpression), nameof(InitializerExpressionSyntax) }
+            {nameof(SyntaxKind.ObjectInitializerExpression), nameof(InitializerExpressionSyntax) },
+            {nameof(SyntaxKind.ComplexElementInitializerExpression), nameof(InitializerExpressionSyntax) },
+            {nameof(SyntaxKind.WithInitializerExpression), nameof(InitializerExpressionSyntax) },
         }.ToImmutableDictionary();
 
         public void Execute(GeneratorExecutionContext context)
@@ -150,6 +152,9 @@ namespace SyntaxSearch.Framework
 
             foreach (IFieldSymbol kind in syntaxKinds)
             {
+                if (kind.Name is nameof(SyntaxKind.None) or nameof(SyntaxKind.List))
+                    continue;
+
                 var associatedType = context.Compilation.GetTypeByMetadataName($"{namespaceString}.{kind.Name}Syntax");
                 if (associatedType is null && kind.Name.StartsWith("Simple"))
                     associatedType = context.Compilation.GetTypeByMetadataName($"{namespaceString}.{kind.Name.Replace("Simple", "")}Syntax");
@@ -866,9 +871,15 @@ namespace SyntaxSearch.Framework
                     ClassName = $"{kind.Name}Matcher"
                 };
 
-                if (associatedType is null)
+                SyntaxKind value = (SyntaxKind)((ushort)kind.ConstantValue);
+
+                if (SyntaxFacts.IsAnyToken(value))
                 {
-                    var slim = BuildClassNoOverrides(kind, namedProperties: []);
+                    // this is a token, skip
+                }
+                else if (associatedType is null)
+                {
+                    var slim = BuildClassNoOverrides(kind, namedProperties: [], classes: classes);
                     string classTypeName = $"{kind.Name}.Matcher";
 
                     string source = Utilities.Normalize(slim);
@@ -902,28 +913,13 @@ namespace SyntaxSearch.Framework
                     info.Properties = [.. namedProperties];
                     info.Fields = [.. fields];
 
-                    string contents;
-                    if (fields.Any())
-                    {
-                        contents = BuildClass(kind, associatedType, fields, namedProperties, classes);
-                    }
-                    else
-                    {
-                        contents = BuildClassNoOverrides(kind, associatedType, namedProperties, classes);
-                    }
+                    string contents = BuildClass(kind, associatedType, fields, namedProperties, classes);
 
                     string source = Utilities.Normalize(contents);
                     context.AddSource($"{kind.Name}.Matcher.g.cs", source);
                     newTrees.Add((info, source));
 
-                    if (info.Properties.Any())
-                    {
-                        isBuilder.AppendLine($"public static {info.ClassName} {kind.Name} => new {info.ClassName}();");
-                    }
-                    else
-                    {
-                        isBuilder.AppendLine($"public static SyntaxSearch.Matchers.{info.ClassName} {kind.Name} => new SyntaxSearch.Matchers.{info.ClassName}();");
-                    }
+                    isBuilder.AppendLine($"public static {info.ClassName} {kind.Name} => new {info.ClassName}();");
                 }
             }
 
@@ -986,12 +982,12 @@ namespace SyntaxSearch.Matchers.Explicit
         }
 
         private string BuildClassNoOverrides(ISymbol kind,
-                                             INamedTypeSymbol classType = null,
-                                             MatchProperty[] namedProperties = null,
-                                             IReadOnlyDictionary<IFieldSymbol, INamedTypeSymbol> classes = null)
+                                     INamedTypeSymbol classType = null,
+                                     MatchProperty[] namedProperties = null,
+                                     IReadOnlyDictionary<IFieldSymbol, INamedTypeSymbol> classes = null)
         {
             StringBuilder builder = new();
-            string className = classType?.Name; 
+            string className = classType?.Name;
 
             if (className != null)
             {
@@ -1384,10 +1380,7 @@ namespace SyntaxSearch.Matchers
 }
 ");
 
-            if (namedProperties.Any())
-            {
-                GenerateExplicitMatcherClass(kind, classType, fields, namedProperties, builder, classes);
-            }
+            GenerateExplicitMatcherClass(kind, classType, fields, namedProperties, builder, classes);
 
             return Utilities.Normalize(builder);
         }

@@ -19,7 +19,7 @@ namespace SyntaxSearcher.Generators
                 if (f.Type.IsSubclassOf(syntaxNodeType))
                     return new { prop = f, isList = false, include = true };
 
-                if (f.Type.IsSubclassOf(syntaxTokenType) && f.Name is "Identifier" or "Keyword" or "Token")
+                if (f.Type.IsSubclassOf(syntaxTokenType) && f.Name is "Identifier" or "Keyword")
                     return new { prop = f, isList = false, include = true };
 
                 var n = f.Type as INamedTypeSymbol;

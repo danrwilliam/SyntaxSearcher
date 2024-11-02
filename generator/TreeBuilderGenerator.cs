@@ -14,8 +14,6 @@ namespace SyntaxSearcher.Generators
         public static ImmutableDictionary<string, string> TokenProperties = new Dictionary<string, string>()
         {
             {"Identifier", "Text" },
-            {"Keyword" , "Text" },
-            {"Token", "ValueText" }
         }.ToImmutableDictionary();
 
         private static readonly ImmutableHashSet<string> _supportAutoCompare = ImmutableArray.Create(
