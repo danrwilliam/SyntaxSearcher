@@ -11,12 +11,6 @@ namespace SyntaxSearch.Matchers
         {
         }
 
-        public ThisAccessExpressionMatcher(ThisAccessExpressionMatcher copy) : base(copy)
-        {
-        }
-
-        public ThisAccessExpressionMatcher() : base(null, null) { }
-
         protected override bool IsNodeMatch(SyntaxNode node, CaptureStore store)
         {
             if (node is MemberAccessExpressionSyntax member)

@@ -766,6 +766,9 @@ namespace SyntaxSearch.Matchers
     public partial class {classType.Name}
     {{");
 
+                    List<string> copyFields = [];
+                    List<IFieldSymbol> withFields = [];
+
                     bool firstField = true;
                     foreach (var field in fields)
                     {
@@ -784,6 +787,8 @@ namespace SyntaxSearch.Matchers
                             string value = $"{char.ToLower(serializedName[0])}{serializedName.Substring(1)}";
 
                             builder.AppendLine($"{field.Name} = {field.Name.Trim('_')};");
+
+                            copyFields.Add(field.Name);
                         }
                         else if (SymbolEqualityComparer.Default.Equals(field.Type, boolType))
                         {
@@ -792,6 +797,7 @@ namespace SyntaxSearch.Matchers
                             string value = $"{char.ToLower(serializedName[0])}{serializedName.Substring(1)}";
 
                             builder.AppendLine($"{field.Name} = {field.Name.Trim('_')};");
+                            copyFields.Add(field.Name);
                         }
                         else if (field.Type.TypeKind == TypeKind.Enum)
                         {
@@ -800,6 +806,16 @@ namespace SyntaxSearch.Matchers
                             string value = $"{char.ToLower(serializedName[0])}{serializedName.Substring(1)}";
 
                             builder.AppendLine($"{field.Name} = {field.Name.Trim('_')};");
+                            copyFields.Add(field.Name);
+                        }
+                        else if (field.Type.Name == "LogicalOrNodeMatcher")
+                        {
+                            copyFields.Add(field.Name);
+                        }
+
+                        if (field.GetAttributes().Any(attr => attr.AttributeClass.Name == "WithAttribute"))
+                        {
+                            withFields.Add(field);
                         }
                     }
 
@@ -808,8 +824,38 @@ namespace SyntaxSearch.Matchers
                         // close constructor
                         builder.AppendLine("}");
                     }
-                }
 
+                    // copy constructor
+                    builder.AppendLine($@"
+                            public {classType.Name}({classType.Name} copy) : base(copy)
+                            {{");
+                    foreach (var c in copyFields)
+                    {
+                        builder.AppendLine($"this.{c} = copy.{c};");
+                    }
+
+                    builder.AppendLine("}");
+
+                    if (!classType.Constructors.Any(c => c is { DeclaredAccessibility: Accessibility.Public, CanBeReferencedByName: true, Parameters.IsEmpty: true }))
+                    {
+                        builder.AppendLine($"public {classType.Name}() {{ }}");
+                    }
+
+                    foreach (var field in withFields.Where(f => !f.IsReadOnly))
+                    {
+                        string trimmedName = field.Name.Trim('_');
+                        string methodName = $"{char.ToUpper(trimmedName[0])}{trimmedName.Substring(1)}";
+
+                        builder.AppendLine($@"
+                            public {classType.Name} With{methodName}({field.Type.ToDisplayString()} matcher)
+                            {{
+                                var copy = new {classType.Name}(this);
+                                copy.{field.Name} = matcher;
+                                return copy;
+                            }}
+");
+                    }
+                }
 
                 if (builder.Length > 0)
                 {
@@ -967,6 +1013,10 @@ namespace SyntaxSearch.Matchers.Explicit
         }}
 
         protected {name}({name} copy) : base(copy)
+        {{
+        }}
+
+        protected {name}() : base()
         {{
         }}
     }}

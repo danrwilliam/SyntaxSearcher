@@ -130,6 +130,7 @@
     <Compile Include="matcher\BinaryMatcherTests.cs" />
     <Compile Include="matcher\ConstraintTests.cs" />
     <Compile Include="matcher\MatcherTests.cs" />
+    <Compile Include="matcher\NameMatcherTests.cs" />
     <Compile Include="matcher\SyntaxTests.cs" />
     <Compile Include="matcher\TokenTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

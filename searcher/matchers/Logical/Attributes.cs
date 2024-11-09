@@ -7,4 +7,10 @@ namespace SyntaxSearch.Matchers
     /// </summary>
     [AttributeUsage(AttributeTargets.Class)]
     internal sealed class ExcludeAttribute : Attribute;
+
+    /// <summary>
+    /// Use the marked constructor when creating the Is/Does static methods
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Constructor)]
+    internal sealed class UseConstructorAttribute : Attribute;
 }

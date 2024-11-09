@@ -28,6 +28,7 @@ namespace SyntaxSearchUnitTests.Matcher
 
         [NUnit::TestCase("base.Value", 1)]
         [NUnit::TestCase("base.Value + base.Value", 2)]
+        [NUnit::TestCase("base.Value + base.Value.Test", 3)]
         [NUnit::TestCase("base.Value(base.A, base.B, base.C)", 4)]
         public void BaseAccessMatcher(string text, int count)
         {

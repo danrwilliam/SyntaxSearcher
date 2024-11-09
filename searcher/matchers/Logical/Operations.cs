@@ -14,11 +14,25 @@ namespace SyntaxSearch.Matchers
     [AttributeUsage(AttributeTargets.Field)]
     internal sealed class WithAttribute : Attribute;
 
-    public abstract class LogicalMatcher : BaseMatcher, ILogicalMatcher;
+    public abstract class LogicalMatcher : BaseMatcher, ILogicalMatcher
+    {
+        protected LogicalMatcher(BaseMatcher copy) : base(copy)
+        {
+        }
+
+        protected LogicalMatcher()
+        {
+        }
+    }
 
     public abstract class MultipleOperandLogicalMatcher : LogicalMatcher, ICompoundLogicalMatcher
     {
         public ImmutableArray<INodeMatcher> Matchers { get; private set; } = [];
+
+        protected MultipleOperandLogicalMatcher(MultipleOperandLogicalMatcher copy) : base(copy)
+        {
+            Matchers = copy.Matchers;
+        }
 
         protected MultipleOperandLogicalMatcher(params INodeMatcher[] matchers)
         {
@@ -62,11 +76,9 @@ namespace SyntaxSearch.Matchers
     //}
 
     //[Does("Match")]
-    public partial class MatchCapture : ILogicalMatcher
+    public partial class MatchCapture : LogicalMatcher
     {
         private string _name;
-
-        public NodeAccept Accepts { get; set; }
 
         public MatchCapture Named(string name)
         {
@@ -75,7 +87,7 @@ namespace SyntaxSearch.Matchers
             return dup;
         }
 
-        public bool IsMatch(SyntaxNode node, CaptureStore store)
+        public override bool IsMatch(SyntaxNode node, CaptureStore store)
         {
             if (!string.IsNullOrWhiteSpace(_name) 
                 && store.CapturedGroups.TryGetValue(_name, out var capturedNode))
@@ -291,10 +303,6 @@ namespace SyntaxSearch.Matchers
         private readonly string _name;
 
         public static AnythingMatcher Default { get; } = new AnythingMatcher();
-
-        public AnythingMatcher()
-        {
-        }
 
         public AnythingMatcher Capture(string name)
         {

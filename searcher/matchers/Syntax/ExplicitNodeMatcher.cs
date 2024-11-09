@@ -12,7 +12,11 @@ namespace SyntaxSearch.Matchers
         {
         }
 
-        public override bool IsMatch(SyntaxNode node, CaptureStore store)
+        protected ExplicitNodeMatcher() : this(null, null)
+        {
+        }
+
+        public sealed override bool IsMatch(SyntaxNode node, CaptureStore store)
         {
             if (!IsNodeMatch(node, store))
                 return false;

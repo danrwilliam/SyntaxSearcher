@@ -2,6 +2,7 @@
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using SyntaxSearch.Framework;
 using SyntaxSearch.Matchers.Explicit;
+using System.Collections.Immutable;
 
 namespace SyntaxSearch.Matchers
 {
@@ -12,12 +13,6 @@ namespace SyntaxSearch.Matchers
         {
         }
 
-        public BaseAccessExpressionMatcher(BaseAccessExpressionMatcher copy) : base(copy)
-        {
-        }
-
-        public BaseAccessExpressionMatcher() : base(null, null) { }
-
         protected override bool IsNodeMatch(SyntaxNode node, CaptureStore store)
         {
             if (node is MemberAccessExpressionSyntax member)
@@ -25,7 +20,7 @@ namespace SyntaxSearch.Matchers
                 var left = member.Expression;
                 while (left is MemberAccessExpressionSyntax m)
                 {
-                    left = m;
+                    left = m.Expression;
                 }
 
                 return left is BaseExpressionSyntax;

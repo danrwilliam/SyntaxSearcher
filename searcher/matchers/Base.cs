@@ -80,5 +80,13 @@ namespace SyntaxSearch.Matchers
         public virtual NodeAccept Accepts { get; set; } = NodeAccept.Node;
 
         public abstract bool IsMatch(SyntaxNode node, CaptureStore store);
+
+        public BaseMatcher(BaseMatcher copy)
+        {
+        }
+
+        public BaseMatcher()
+        {
+        }
     }
 }
