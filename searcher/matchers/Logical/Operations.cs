@@ -276,7 +276,7 @@ namespace SyntaxSearch.Matchers
     }
 
     [Is]
-    public class NotNullMatcher : LogicalMatcher
+    public sealed class NotNullMatcher : LogicalMatcher
     {
         public override bool IsMatch(SyntaxNode node, CaptureStore store)
         {
@@ -285,11 +285,36 @@ namespace SyntaxSearch.Matchers
     }
 
     [Is]
-    public class NullMatcher : LogicalMatcher
+    public sealed class NullMatcher : LogicalMatcher
     {
         public override bool IsMatch(SyntaxNode node, CaptureStore store)
         {
             return node is null;
+        }
+    }
+
+    public sealed partial class CaptureMatcher : BaseMatcher, ILogicalMatcher
+    {
+        public static CaptureMatcher Default { get; } = new CaptureMatcher();
+
+        [With]
+        private INodeMatcher _matcher;
+
+        [With]
+        private string _name;
+
+        public override bool IsMatch(SyntaxNode node, CaptureStore store)
+        {
+            if (_matcher?.IsMatch(node, store) is true
+                && _name is not null)
+            {
+                store.CapturedGroups.Add(_name, node);
+                return true;
+            }
+            else
+            {
+                return false;
+            }
         }
     }
 

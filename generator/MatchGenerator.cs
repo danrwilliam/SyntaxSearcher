@@ -559,7 +559,7 @@ namespace SyntaxSearch.Parser
                                                             CanBeReferencedByName : true,
                                                             IsStatic : false,
                                                             DeclaredAccessibility: Accessibility.Protected or Accessibility.Private
-                                                         } && f.Type.Name != "INodeMatcher" && !f.Type.AllInterfaces.Any(intf => intf.Name == "INodeMatcher"))];
+                                                         })];// && f.Type.Name != "INodeMatcher" && !f.Type.AllInterfaces.Any(intf => intf.Name == "INodeMatcher"))];
 
                     builder.AppendLine("{");
 
@@ -570,15 +570,16 @@ namespace SyntaxSearch.Parser
                         string shortName = f.Name.Trim('_').Replace("Kind", "");
                         string attributeName = $"{char.ToUpper(shortName[0])}{shortName.Substring(1)}";
 
-                        builder.AppendLine($"{f.Type} {shortName} = default;");
                         switch (f.Type)
                         {
                             case { SpecialType: SpecialType.System_String }:
+                                builder.AppendLine($"{f.Type} {shortName} = default;");
                                 builder.AppendLine(@$"{shortName} = element.Attributes[""{attributeName}""]?.Value;");
                                 args.Add(shortName);
                                 break;
 
                             case { SpecialType: SpecialType.System_Boolean }:
+                                builder.AppendLine($"{f.Type} {shortName} = default;");
                                 builder.AppendLine($@"
                                 if (element.Attributes[""{attributeName}""]?.Value is string {shortName}Raw)
                                 {{
@@ -588,6 +589,7 @@ namespace SyntaxSearch.Parser
                                 break;
 
                             case { TypeKind: TypeKind.Enum }:
+                                builder.AppendLine($"{f.Type} {shortName} = default;");
                                 builder.AppendLine($@"
                                 if (element.Attributes[""{attributeName}""]?.Value is string {shortName}Raw)
                                 {{
@@ -782,34 +784,22 @@ namespace SyntaxSearch.Matchers
 
                         if (SymbolEqualityComparer.Default.Equals(field.Type, stringType))
                         {
-                            string serializedName = field.Name.Trim('_').Trim().Replace("Kind", "");
-                            serializedName = $"{char.ToUpper(serializedName[0])}{serializedName.Substring(1)}";
-                            string value = $"{char.ToLower(serializedName[0])}{serializedName.Substring(1)}";
-
                             builder.AppendLine($"{field.Name} = {field.Name.Trim('_')};");
-
                             copyFields.Add(field.Name);
                         }
                         else if (SymbolEqualityComparer.Default.Equals(field.Type, boolType))
                         {
-                            string serializedName = field.Name.Trim('_').Trim().Replace("Kind", "");
-                            serializedName = $"{char.ToUpper(serializedName[0])}{serializedName.Substring(1)}";
-                            string value = $"{char.ToLower(serializedName[0])}{serializedName.Substring(1)}";
-
                             builder.AppendLine($"{field.Name} = {field.Name.Trim('_')};");
                             copyFields.Add(field.Name);
                         }
                         else if (field.Type.TypeKind == TypeKind.Enum)
                         {
-                            string serializedName = field.Name.Trim('_').Trim().Replace("Kind", "");
-                            serializedName = $"{char.ToUpper(serializedName[0])}{serializedName.Substring(1)}";
-                            string value = $"{char.ToLower(serializedName[0])}{serializedName.Substring(1)}";
-
                             builder.AppendLine($"{field.Name} = {field.Name.Trim('_')};");
                             copyFields.Add(field.Name);
                         }
-                        else if (field.Type.Name == "LogicalOrNodeMatcher")
+                        else if (field.Type.Name is "LogicalOrNodeMatcher" or "INodeMatcher")
                         {
+                            builder.AppendLine($"{field.Name} = {field.Name.Trim('_')};");
                             copyFields.Add(field.Name);
                         }
 

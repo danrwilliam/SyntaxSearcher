@@ -19,6 +19,11 @@ namespace SyntaxSearch
             var searcher = new Searcher(matcher);
             return searcher.IsMatch(node);
         }
+
+        public static CaptureMatcher Capture(this INodeMatcher matcher, string name)
+        {
+            return CaptureMatcher.Default.WithMatcher(matcher).WithName(name);
+        }
     }
 
     /// <summary>
