@@ -6,45 +6,13 @@ using System.Linq;
 
 namespace SyntaxSearch
 {
-    public static class Extensions
-    {
-        /// <summary>
-        /// Runs the matcher against the given node
-        /// </summary>
-        /// <param name="matcher"></param>
-        /// <param name="node"></param>
-        /// <returns></returns>
-        public static IEnumerable<SearchResult> Search(this INodeMatcher matcher, SyntaxNode node)
-        {
-            var searcher = new Searcher(matcher);
-            return searcher.Search(node);
-        }
-
-        public static bool IsMatch(this INodeMatcher matcher, SyntaxNode node)
-        {
-            var searcher = new Searcher(matcher);
-            return searcher.IsMatch(node);
-        }
-
-        public static bool TryMatch(this INodeMatcher matcher, SyntaxNode node, out SearchResult result)
-        {
-            var searcher = new Searcher(matcher);
-            return searcher.TryMatch(node, out result);
-        }
-
-        public static CaptureMatcher Capture(this INodeMatcher matcher, string name)
-        {
-            return CaptureMatcher.Default.WithMatcher(matcher).WithName(name);
-        }
-    }
-
     /// <summary>
     /// Searches a SyntaxNode tree for matches
     /// </summary>
     /// <remarks>
     /// </remarks>
     /// <param name="matcher">match object</param>
-    public class Searcher(INodeMatcher matcher)
+    public sealed class Searcher(INodeMatcher matcher)
     {
         public INodeMatcher Matcher { get; } = matcher;
 
@@ -110,7 +78,7 @@ namespace SyntaxSearch
     /// <param name="node"></param>
     /// <param name="additional">this argument is cloned with a shallow copy</param>
     /// <param name="captures">this argument is cloned with a shallow copy</param>
-    public class SearchResult(SyntaxNode node,
+    public sealed class SearchResult(SyntaxNode node,
                               IEnumerable<SyntaxNode> additional,
                               Dictionary<string, SyntaxNode> captures)
     {

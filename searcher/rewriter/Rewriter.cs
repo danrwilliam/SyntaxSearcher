@@ -3,65 +3,35 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using SyntaxSearch.Matchers;
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
-namespace SyntaxSearch.Rewriter
+namespace SyntaxSearch
 {
-    public class RewriterTemplate
+    public class Rewriter(INodeMatcher matcher, Func<SearchResult, SyntaxNode> computeReplacement)
     {
-        private readonly string _template;
-        private readonly HashSet<(string, string)> _namedGroups;
+        private readonly INodeMatcher _matcher = matcher;
+        private readonly Func<SearchResult, SyntaxNode> _computeReplacement = computeReplacement;
 
-        private readonly NodeWrapperDelegate _wrap;
-
-        public delegate SyntaxNode NodeWrapperDelegate(ExpressionSyntax node);
-
-        public RewriterTemplate(string templateString, NodeWrapperDelegate wrapperDelegate = null)
+        public T Rewrite<T>(T node) where T : SyntaxNode
         {
-            _template = templateString;
-            _wrap = wrapperDelegate;
+            List<(SyntaxNode, SyntaxNode)> replacements = [];
 
-            _namedGroups = [];
-
-            MatchCollection captures = Regex.Matches(_template, @"(\$([A-Za-z]+))");
-
-            foreach (Match variable in captures)
+            foreach (var result in _matcher.Search(node))
             {
-                _namedGroups.Add((variable.Groups[1].Value, variable.Groups[2].Value));
-            }
-        }
-
-        /// <summary>
-        /// Create a new SyntaxNode from the template using the captured groups
-        /// </summary>
-        /// <param name="originalNode"></param>
-        /// <returns></returns>
-        /// <param name="store">has captured groups</param>
-        public SyntaxNode Rewrite(SyntaxNode originalNode, CaptureStore store)
-        {
-            string output = _template;
-
-            foreach ((var templateVariable, var groupName) in _namedGroups)
-            {
-                if (store.CapturedGroups.TryGetValue(groupName, out var capture))
-                {
-                    string repr = capture.ToFullString();
-
-                    output = output.Replace(templateVariable, repr);
-                }
-                else
-                {
-                    throw new InvalidOperationException($"capture group \"{groupName}\" expected but not found");
-                }
+                var replacement = _computeReplacement(result);
+                replacements.Add((result.Node, replacement));
             }
 
-            var newNode = SyntaxFactory.ParseExpression(output).NormalizeWhitespace().WithTriviaFrom(originalNode);
+            T tracked = node.TrackNodes(replacements.Select(n => n.Item1));
+            foreach ((var original, var replacement) in replacements)
+            {
+                var current = tracked.GetCurrentNode(original);
+                tracked = tracked.ReplaceNode(current, replacement);
+            }
 
-            if (_wrap != null)
-                return _wrap(newNode).NormalizeWhitespace();
-            else
-                return newNode;
+            return tracked;
         }
     }
 }

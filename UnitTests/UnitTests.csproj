@@ -133,6 +133,7 @@
     <Compile Include="matcher\MatcherTests.cs" />
     <Compile Include="matcher\MaybeParensTests.cs" />
     <Compile Include="matcher\NameMatcherTests.cs" />
+    <Compile Include="matcher\RewriterTests.cs" />
     <Compile Include="matcher\SyntaxTests.cs" />
     <Compile Include="matcher\TokenTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
