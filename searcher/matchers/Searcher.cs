@@ -8,6 +8,12 @@ namespace SyntaxSearch
 {
     public static class Extensions
     {
+        /// <summary>
+        /// Runs the matcher against the given node
+        /// </summary>
+        /// <param name="matcher"></param>
+        /// <param name="node"></param>
+        /// <returns></returns>
         public static IEnumerable<SearchResult> Search(this INodeMatcher matcher, SyntaxNode node)
         {
             var searcher = new Searcher(matcher);
@@ -18,6 +24,12 @@ namespace SyntaxSearch
         {
             var searcher = new Searcher(matcher);
             return searcher.IsMatch(node);
+        }
+
+        public static bool TryMatch(this INodeMatcher matcher, SyntaxNode node, out SearchResult result)
+        {
+            var searcher = new Searcher(matcher);
+            return searcher.TryMatch(node, out result);
         }
 
         public static CaptureMatcher Capture(this INodeMatcher matcher, string name)
@@ -68,9 +80,28 @@ namespace SyntaxSearch
         /// <summary>
         /// Checks if the given node is a match
         /// </summary>
+        /// <para>Only the given node is matched</para>
         /// <param name="node"></param>
         /// <returns></returns>
-        public bool IsMatch(SyntaxNode node) => Matcher.IsMatch(node, new());
+        public bool IsMatch(SyntaxNode node)
+        {
+            return TryMatch(node, out _);
+        }
+
+        public bool TryMatch(SyntaxNode node, out SearchResult result)
+        {
+            CaptureStore store = new();
+            if (Matcher.IsMatch(node, store))
+            {
+                result = new SearchResult(store.Override ?? node, store.AdditionalCaptures, store.CapturedGroups);
+                return true;
+            }
+            else
+            {
+                result = null;
+                return false;
+            }
+        }
     }
 
     /// <summary>
