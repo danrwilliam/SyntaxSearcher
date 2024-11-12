@@ -25,6 +25,8 @@ namespace SyntaxSearch.Framework
 
     public sealed class HasAttribute(string name = null) : MethodAttribute(name);
 
+    public sealed class MaybeAttribute(string name = null) : MethodAttribute(name);
+
     public static partial class Is
     {
         //public static IsOneOfMatcher OneOf(INodeMatcher matcher, params INodeMatcher[] remaining)
