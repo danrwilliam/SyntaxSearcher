@@ -1,4 +1,6 @@
 ﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace SyntaxSearcher.Generators
@@ -12,14 +14,22 @@ namespace SyntaxSearcher.Generators
         /// <param name="parameterType"></param>
         /// <param name="syntaxNodeType"></param>
         /// <returns>tuple of the property symbol and if it's a list</returns>
-        public static MatchProperty[] GetNamedProperties(ITypeSymbol parameterType, INamedTypeSymbol syntaxNodeType, INamedTypeSymbol syntaxTokenType)
+        public static MatchProperty[] GetNamedProperties(IFieldSymbol kind, ITypeSymbol parameterType, INamedTypeSymbol syntaxNodeType, INamedTypeSymbol syntaxTokenType)
         {
+            bool includeToken = kind switch
+            {
+                { HasConstantValue: true, ConstantValue: ushort v } => !NoTokens.Contains((SyntaxKind)v),
+                _ => true
+            };
+
             return [.. parameterType.GetMembers().OfType<IPropertySymbol>().Where(p => p.CanBeReferencedByName).Select(f =>
             {
                 if (f.Type.IsSubclassOf(syntaxNodeType))
                     return new { prop = f, isList = false, include = true };
 
-                if (f.Type.IsSubclassOf(syntaxTokenType) && f.Name is "Identifier" or "Keyword")
+                if (includeToken && f.Type.IsSubclassOf(syntaxTokenType) && f.Name is "Identifier" or "Keyword" or "Token")
+                    return new { prop = f, isList = false, include = true };
+                else if (!includeToken && f.Type.IsSubclassOf(syntaxTokenType) && f.Name is "Identifier" or "Keyword")
                     return new { prop = f, isList = false, include = true };
 
                 var n = f.Type as INamedTypeSymbol;
@@ -33,5 +43,21 @@ namespace SyntaxSearcher.Generators
             .Where(f => f.include && f.prop.Name != "Parent")
             .Select(f => new MatchProperty(f.prop, f.isList))];
         }
+
+        /// <summary>
+        /// SyntaxKinds that should not expose Token methods
+        /// </summary>
+        static readonly HashSet<SyntaxKind> NoTokens =
+        [
+            SyntaxKind.NullLiteralExpression,
+            SyntaxKind.ArgListExpression,
+            SyntaxKind.StringLiteralExpression,
+            SyntaxKind.NumericLiteralExpression,
+            SyntaxKind.Utf8StringLiteralExpression,
+            SyntaxKind.CharacterLiteralExpression,
+            SyntaxKind.TrueLiteralExpression,
+            SyntaxKind.FalseLiteralExpression,
+            SyntaxKind.DefaultLiteralExpression
+        ];
     }
 }

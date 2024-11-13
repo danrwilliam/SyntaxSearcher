@@ -125,7 +125,10 @@ namespace SyntaxSearch.Framework
             var classToKind = new Dictionary<INamedTypeSymbol, IFieldSymbol>(SymbolEqualityComparer.Default);
             foreach (var kvp in GenerateMap(context).Item1)
             {
-                classToKind[kvp.Value] = kvp.Key;
+                if (kvp.Value is not null)
+                {
+                    classToKind[kvp.Value] = kvp.Key;
+                }
             }
             return classToKind;
         }
@@ -925,7 +928,7 @@ namespace SyntaxSearch.Framework
                 }
                 else
                 {
-                    var namedProperties = Helpers.GetNamedProperties(associatedType, syntaxNodeType, syntaxTokenType);
+                    var namedProperties = Helpers.GetNamedProperties(kind, associatedType, syntaxNodeType, syntaxTokenType);
                     // type, node access, field name
                     List<MatchField> fields = [];
 
@@ -1021,10 +1024,10 @@ namespace SyntaxSearch.Matchers.Explicit
             return $"_{char.ToLower(kvp[0])}{kvp.Substring(1)}";
         }
 
-        private string BuildClassNoOverrides(ISymbol kind,
-                                     INamedTypeSymbol classType = null,
-                                     MatchProperty[] namedProperties = null,
-                                     IReadOnlyDictionary<IFieldSymbol, INamedTypeSymbol> classes = null)
+        private string BuildClassNoOverrides(IFieldSymbol kind,
+                                             INamedTypeSymbol classType = null,
+                                             MatchProperty[] namedProperties = null,
+                                             IReadOnlyDictionary<IFieldSymbol, INamedTypeSymbol> classes = null)
         {
             StringBuilder builder = new();
             string className = classType?.Name;
@@ -1108,7 +1111,7 @@ namespace SyntaxSearch.Matchers
             return builder.ToString();
         }
 
-        private static void GenerateExplicitMatcherClass(ISymbol kind,
+        private static void GenerateExplicitMatcherClass(IFieldSymbol kind,
                                                          INamedTypeSymbol classType,
                                                          List<MatchField> fields,
                                                          MatchProperty[] namedProperties,
@@ -1353,7 +1356,7 @@ namespace SyntaxSearch.Matchers
 
         private string NewLine => NewLineLazy.Value;
 
-        private string BuildClass(ISymbol kind,
+        private string BuildClass(IFieldSymbol kind,
                                   INamedTypeSymbol classType,
                                   List<MatchField> fields,
                                   MatchProperty[] namedProperties,

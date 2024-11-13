@@ -48,6 +48,8 @@ namespace SyntaxSearcher.Generators
             text.AppendLine("    internal partial class TreeWalker");
             text.AppendLine("    {");
 
+            var map = MatcherGenerator.GetClassToKindMap(context);
+
             foreach (var method in methods)
             {
                 if (!method.Parameters.Any())
@@ -55,7 +57,11 @@ namespace SyntaxSearcher.Generators
 
                 var parameterType = method.Parameters[0].Type;
                 bool started = false;
-                var namedProperties = Helpers.GetNamedProperties(parameterType, syntaxNodeType, syntaxTokenType);
+                map.TryGetValue((INamedTypeSymbol)parameterType, out var syntaxKind);
+                var namedProperties = Helpers.GetNamedProperties(syntaxKind,
+                                                                 parameterType,
+                                                                 syntaxNodeType,
+                                                                 syntaxTokenType);
 
                 static void createHeaderIfNeeded(StringBuilder builder, IMethodSymbol m, ITypeSymbol type, ref bool start)
                 {

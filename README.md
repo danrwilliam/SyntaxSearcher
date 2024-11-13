@@ -4,6 +4,21 @@ A library for making it simple to use Roslyn to examine code bases.
 
 ## Example
 
+```csharp
+Is.IfStatement
+    .WithCondition(
+        Is.NotEqualsExpression
+            .WithLeft(Is.Anything.Capture("objectInvoked"))
+            .WithRight(Is.NullLiteralExpression))
+    .WithBlock(
+        Is.ExpressionStatement
+            .WithExpression(
+                Is.InvocationExpression
+                    .WithExpression(Does.Match("objectInvoked"))))
+```
+
+Or with XML
+
 ```xml
 <SyntaxSearchDefinition>
   <IfStatement>
