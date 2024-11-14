@@ -999,7 +999,7 @@ using System.Collections.Immutable;
 
 namespace SyntaxSearch.Matchers.Explicit
 {{
-    public abstract class {name} : {baseType}
+    public abstract partial class {name} : {baseType}
     {{
         protected {name}(string captureName, string matchName) : base(captureName, matchName)
         {{
@@ -1089,7 +1089,7 @@ using System.Collections.Immutable;
 
 namespace SyntaxSearch.Matchers
 {{
-    public class {kind.Name}Matcher : NodeMatcher
+    public partial class {kind.Name}Matcher : NodeMatcher
     {{
 
         public {kind.Name}Matcher(string captureName = null, string matchCapture = null) : base(
@@ -1128,7 +1128,7 @@ namespace SyntaxSearch.Matchers
 
             builder.AppendLine("namespace SyntaxSearch.Matchers.Explicit {");
 
-            builder.AppendLine($"public class {kind.Name}Matcher : {baseType} {{");
+            builder.AppendLine($"public partial class {kind.Name}Matcher : {baseType} {{");
 
             foreach (var i in fields)
             {
