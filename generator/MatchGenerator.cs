@@ -306,7 +306,7 @@ namespace SyntaxSearch.Parser
 
                 if (type.Properties.Any() || type.Fields.Any())
                 {
-                    List<string> args = new();
+                    List<string> args = [];
 
                     foreach (var f in type.Fields)
                     {
@@ -398,10 +398,10 @@ namespace SyntaxSearch.Parser
 
                     builder.AppendLine("switch (child.Name) {");
 
-                    foreach ((IPropertySymbol property, bool isList) in type.Properties)
+                    foreach ((IPropertySymbol property, PropertyKind generatorKind) in type.Properties)
                     {
                         builder.AppendLine($"case \"{property.Name}\":");
-                        if (isList)
+                        if (generatorKind == PropertyKind.GenericTokenList)
                         {
                             builder.AppendLine($@"
                             foreach (var listElement in child.OfType<XmlNode>()) {{
@@ -433,7 +433,7 @@ namespace SyntaxSearch.Parser
                                 matcher.{property.Name} = childMatcher; 
 }}");
                         }
-                        else
+                        else if (generatorKind == PropertyKind.Normal)
                         {
                             var matcher = property.Type.GetMatcherBase();
 
@@ -665,7 +665,7 @@ namespace SyntaxSearch.Parser
                 return false;
             }
 
-            Dictionary<string, StringBuilder> staticBuilders = new();
+            Dictionary<string, StringBuilder> staticBuilders = [];
             void addToStaticClass(AttributeData attribute,
                                   INamedTypeSymbol returnType,
                                   string ctor,
@@ -1137,9 +1137,9 @@ namespace SyntaxSearch.Matchers
 
             StringBuilder builderMethods = new();
 
-            foreach ((var namedProp, bool isList) in namedProperties)
+            foreach ((var namedProp, PropertyKind generatorKind) in namedProperties)
             {
-                if (isList)
+                if (generatorKind == PropertyKind.GenericTokenList)
                 {
                     builder.AppendLine($"public ImmutableArray<INodeMatcher> {namedProp.Name} {{ get;  internal set; }} = ImmutableArray.Create<INodeMatcher>();");
 
@@ -1173,6 +1173,7 @@ namespace SyntaxSearch.Matchers
 
                     (string matchType, string propertyType) = namedProp.Type switch
                     {
+                        { } when generatorKind == PropertyKind.TokenList => ("ISyntaxTokenListMatcher", "ISyntaxTokenListMatcher"),
                         { Name: nameof(SyntaxToken) } => ("ITokenMatcher", "ITokenMatcher"),
                         { IsAbstract: true } t when !t.Name.StartsWith("Base") => ($"{t.Name}Matcher", $"LogicalOrNodeMatcher<{t.Name}Matcher>"),
                         _ => ("INodeMatcher", "INodeMatcher")
@@ -1297,11 +1298,11 @@ namespace SyntaxSearch.Matchers
                     var castNode = ({className})node;
 ");
 
-            foreach ((var namedProp, bool isList) in namedProperties)
+            foreach ((var namedProp, PropertyKind generatorKind) in namedProperties)
             {
                 string localName = $"{namedProp.Name.ToLower()}Node";
 
-                if (isList)
+                if (generatorKind == PropertyKind.GenericTokenList)
                 {
                     builder.AppendLine(@$"
     if (!{namedProp.Name}.IsEmpty)

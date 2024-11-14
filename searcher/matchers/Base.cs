@@ -36,6 +36,11 @@ namespace SyntaxSearch.Matchers
         bool IsMatch(SyntaxToken token, CaptureStore store);
     }
 
+    public interface ISyntaxTokenListMatcher
+    {
+        bool IsMatch(SyntaxTokenList list, CaptureStore store);
+    }
+
     public interface ITreeWalkNodeMatcher : INodeMatcher
     {
         /// <summary>

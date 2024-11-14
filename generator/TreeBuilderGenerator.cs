@@ -88,9 +88,9 @@ if (_options.NamedChildren)
 {
 ");
 
-                    foreach ((var property, var isList) in namedProperties)
+                    foreach ((var property, var generatorKind) in namedProperties)
                     {
-                        if (isList)
+                        if (generatorKind == PropertyKind.GenericTokenList)
                         {
                             text.AppendLine($@"
 
@@ -111,7 +111,7 @@ if (node.{property.Name} != default)
 }}
 ");
                         }
-                        else
+                        else if (generatorKind == PropertyKind.Normal)
                         {
                             bool isToken = property.Type.Name == nameof(SyntaxToken);
                             string visit = isToken ? "" : $"Visit(node.{property.Name});";

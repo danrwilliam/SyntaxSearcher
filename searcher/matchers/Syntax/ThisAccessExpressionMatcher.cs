@@ -1,6 +1,7 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using SyntaxSearch.Framework;
+using System.Collections.Immutable;
 
 namespace SyntaxSearch.Matchers
 {

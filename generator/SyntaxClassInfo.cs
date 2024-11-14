@@ -3,6 +3,13 @@ using System.Collections.Generic;
 
 namespace SyntaxSearcher.Generators
 {
+    public enum PropertyKind
+    {
+        Normal = 0,
+        GenericTokenList = 1,
+        TokenList = 2
+    }
+
     internal class SyntaxClassInfo
     {
         public string KindName { get; set; }

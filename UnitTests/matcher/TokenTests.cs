@@ -70,5 +70,34 @@ namespace SyntaxSearchUnitTests.Matcher
             NUnit::Assert.That(matcher.IsMatch(property), NUnit::Is.EqualTo(expected));
 
         }
+
+
+        [NUnit::TestCase("public class Test { }", 1)]
+        [NUnit::TestCase("private class Test { }", 0)]
+        public void Modifier(string unit, int results)
+        {
+            var node = SyntaxFactory.ParseCompilationUnit(unit);
+            var searcher = Is.ClassDeclaration.WithModifiers(Has.Modifiers(Is.Public));
+            NUnit::Assert.That(searcher.Search(node), NUnit::Has.Exactly(results).Items);
+        }
+
+        [NUnit::TestCase("public class Test { }", 0)]
+        [NUnit::TestCase("private static class Test { }", 1)]
+        public void CompoundModifier(string unit, int results)
+        {
+            var node = SyntaxFactory.ParseCompilationUnit(unit);
+            var searcher = Is.ClassDeclaration.WithModifiers(Has.Modifiers(Is.Private, Is.Static));
+            NUnit::Assert.That(searcher.Search(node), NUnit::Has.Exactly(results).Items);
+        }
+
+        [NUnit::TestCase("public class Test { }", 1)]
+        [NUnit::TestCase("public static class Test { }", 0)]
+        [NUnit::TestCase("private static class Test { }", 0)]
+        public void CompoundWithNot(string unit, int results)
+        {
+            var node = SyntaxFactory.ParseCompilationUnit(unit);
+            var searcher = Is.ClassDeclaration.WithModifiers(Has.Modifiers(Is.Public, Not.Static));
+            NUnit::Assert.That(searcher.Search(node), NUnit::Has.Exactly(results).Items);
+        }
     }
 }

@@ -14,7 +14,10 @@ namespace SyntaxSearcher.Generators
         /// <param name="parameterType"></param>
         /// <param name="syntaxNodeType"></param>
         /// <returns>tuple of the property symbol and if it's a list</returns>
-        public static MatchProperty[] GetNamedProperties(IFieldSymbol kind, ITypeSymbol parameterType, INamedTypeSymbol syntaxNodeType, INamedTypeSymbol syntaxTokenType)
+        public static MatchProperty[] GetNamedProperties(IFieldSymbol kind,
+                                                         ITypeSymbol parameterType,
+                                                         INamedTypeSymbol syntaxNodeType,
+                                                         INamedTypeSymbol syntaxTokenType)
         {
             bool includeToken = kind switch
             {
@@ -25,20 +28,26 @@ namespace SyntaxSearcher.Generators
             return [.. parameterType.GetMembers().OfType<IPropertySymbol>().Where(p => p.CanBeReferencedByName).Select(f =>
             {
                 if (f.Type.IsSubclassOf(syntaxNodeType))
-                    return new { prop = f, isList = false, include = true };
+                    return new { prop = f, isList = PropertyKind.Normal, include = true };
+
+
+                if (f.Name == "Modifiers")
+                {
+                    return new { prop = f, isList = PropertyKind.TokenList, include = true };
+                }
 
                 if (includeToken && f.Type.IsSubclassOf(syntaxTokenType) && f.Name is "Identifier" or "Keyword" or "Token")
-                    return new { prop = f, isList = false, include = true };
+                    return new { prop = f, isList = PropertyKind.Normal, include = true };
                 else if (!includeToken && f.Type.IsSubclassOf(syntaxTokenType) && f.Name is "Identifier" or "Keyword")
-                    return new { prop = f, isList = false, include = true };
+                    return new { prop = f, isList = PropertyKind.Normal, include = true };
 
                 var n = f.Type as INamedTypeSymbol;
                 if (n.TypeArguments.Length == 1 && n.TypeArguments[0].IsSubclassOf(syntaxNodeType))
                 {
-                    return new { prop = f, isList = true, include = true };
+                    return new { prop = f, isList = PropertyKind.GenericTokenList, include = true };
 
                 }
-                return new { prop = f, isList = false, include = false };
+                return new { prop = f, isList = PropertyKind.Normal, include = false };
             })
             .Where(f => f.include && f.prop.Name != "Parent")
             .Select(f => new MatchProperty(f.prop, f.isList))];
