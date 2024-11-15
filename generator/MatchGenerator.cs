@@ -77,20 +77,9 @@ namespace SyntaxSearch.Framework
             {
                 if (kind.Name == nameof(SyntaxKind.NumericLiteralToken))
                 {
-                    SpecialType[] types =
-                    [
-                        SpecialType.System_Double,
-                        SpecialType.System_Single,
-                        SpecialType.System_UInt16,
-                        SpecialType.System_UInt32,
-                        SpecialType.System_UInt64,
-                        SpecialType.System_Int16,
-                        SpecialType.System_Int32,
-                        SpecialType.System_Int64,
-                    ];
 
                     b.AppendLine($"public static TokenMatcher {kind.Name} => TokenMatcher.Default.WithKind(SyntaxKind.{kind.Name});");
-                    foreach (var numeric in types)
+                    foreach (var numeric in NumericTypes)
                     {
                         var t = context.Compilation.GetSpecialType(numeric);
                         b.AppendLine($"public static TokenMatcher Number({t.ToDisplayString()} value) => Is.{kind.Name}.WithValue(value);");
@@ -115,6 +104,18 @@ namespace SyntaxSearch.Framework
 
             context.AddSource("Is.Token.cs", Utilities.Normalize(b));
         }
+
+        static readonly SpecialType[] NumericTypes =
+        [
+            SpecialType.System_Double,
+            SpecialType.System_Single,
+            SpecialType.System_UInt16,
+            SpecialType.System_UInt32,
+            SpecialType.System_UInt64,
+            SpecialType.System_Int16,
+            SpecialType.System_Int32,
+            SpecialType.System_Int64,
+        ];
 
         public static (Dictionary<IFieldSymbol, INamedTypeSymbol>, HashSet<INamedTypeSymbol>) GetKindToClassMap(GeneratorExecutionContext context)
         {
@@ -918,7 +919,7 @@ namespace SyntaxSearch.Framework
                 }
                 else if (associatedType is null)
                 {
-                    var slim = BuildClassNoOverrides(kind, namedProperties: [], classes: classes);
+                    var slim = BuildClassNoOverrides(kind, context, namedProperties: [], classes: classes);
                     string classTypeName = $"{kind.Name}.Matcher";
 
                     string source = Utilities.Normalize(slim);
@@ -952,7 +953,7 @@ namespace SyntaxSearch.Framework
                     info.Properties = [.. namedProperties];
                     info.Fields = [.. fields];
 
-                    string contents = BuildClass(kind, associatedType, fields, namedProperties, classes);
+                    string contents = BuildClass(kind, associatedType, fields, namedProperties, classes, context);
 
                     string source = Utilities.Normalize(contents);
                     context.AddSource($"{kind.Name}.Matcher.g.cs", source);
@@ -1025,6 +1026,7 @@ namespace SyntaxSearch.Matchers.Explicit
         }
 
         private string BuildClassNoOverrides(IFieldSymbol kind,
+                                             GeneratorExecutionContext context,
                                              INamedTypeSymbol classType = null,
                                              MatchProperty[] namedProperties = null,
                                              IReadOnlyDictionary<IFieldSymbol, INamedTypeSymbol> classes = null)
@@ -1071,7 +1073,7 @@ namespace SyntaxSearch.Matchers
 
                 if (namedProperties.Any())
                 {
-                    GenerateExplicitMatcherClass(kind, classType, [], namedProperties, builder, classes);
+                    GenerateExplicitMatcherClass(kind, classType, [], namedProperties, builder, classes, context);
                 }
             }
             else
@@ -1103,7 +1105,7 @@ namespace SyntaxSearch.Matchers
 ");
                 if (namedProperties.Any())
                 {
-                    GenerateExplicitMatcherClass(kind, classType, [], namedProperties, builder, classes);
+                    GenerateExplicitMatcherClass(kind, classType, [], namedProperties, builder, classes, context);
                 }
             }
 
@@ -1116,7 +1118,8 @@ namespace SyntaxSearch.Matchers
                                                          List<MatchField> fields,
                                                          MatchProperty[] namedProperties,
                                                          StringBuilder builder,
-                                                         IReadOnlyDictionary<IFieldSymbol, INamedTypeSymbol> classes)
+                                                         IReadOnlyDictionary<IFieldSymbol, INamedTypeSymbol> classes,
+                                                         GeneratorExecutionContext context)
         {
             string className = classType.Name;
 
@@ -1274,7 +1277,19 @@ namespace SyntaxSearch.Matchers
 
             builder.AppendLine("}");
 
+            if (kind.Name == nameof(SyntaxKind.NumericLiteralExpression))
+            {
+                foreach (var numeric in NumericTypes)
+                {
+                    var t = context.Compilation.GetSpecialType(numeric);
+                    builderMethods.AppendLine($"public {kind.Name}Matcher WithNumber({t.ToDisplayString()} value) " +
+                        $"=> WithToken(SyntaxSearch.Framework.Is.Number(value));");
+                }
+            }
+
             builder.AppendLine(builderMethods.ToString());
+
+
 
             builder.AppendLine($@"
                 protected override bool IsNodeMatch(SyntaxNode node, CaptureStore store) {{
@@ -1361,7 +1376,8 @@ namespace SyntaxSearch.Matchers
                                   INamedTypeSymbol classType,
                                   List<MatchField> fields,
                                   MatchProperty[] namedProperties,
-                                  IReadOnlyDictionary<IFieldSymbol, INamedTypeSymbol> classes)
+                                  IReadOnlyDictionary<IFieldSymbol, INamedTypeSymbol> classes,
+                                  GeneratorExecutionContext context)
         {
             string className = classType.Name;
 
@@ -1424,7 +1440,7 @@ namespace SyntaxSearch.Matchers
 }
 ");
 
-            GenerateExplicitMatcherClass(kind, classType, fields, namedProperties, builder, classes);
+            GenerateExplicitMatcherClass(kind, classType, fields, namedProperties, builder, classes, context);
 
             return Utilities.Normalize(builder);
         }

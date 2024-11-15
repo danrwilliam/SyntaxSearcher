@@ -28,6 +28,48 @@ namespace SyntaxSearchUnitTests.Matcher
             NUnit::Assert.That(matcher.IsMatch(token, default), NUnit::Is.True);
         }
 
+        [NUnit::TestCase(10.01, 10.01, true)]
+        [NUnit::TestCase(10.01, 10.5, false)]
+        [NUnit::TestCase(-10.01, -10.01, false)]
+        [NUnit::TestCase(-10, -10.01, false)]
+        public void DoubleNumeric(double value, double matchValue, bool expected)
+        {
+            var expr = LiteralExpression(SyntaxKind.NumericLiteralExpression).WithToken(
+                ParseToken(value.ToString()));
+
+            var matcher = Is.NumericLiteralExpression.WithToken(Is.Number(matchValue));
+
+            NUnit::Assert.That(matcher.IsMatch(expr, default), NUnit::Is.EqualTo(expected));
+        }
+
+        [NUnit::Test]
+        public void NullExpression()
+        {
+            var node = LiteralExpression(SyntaxKind.NullLiteralExpression);
+            NUnit::Assert.That(Is.NullLiteralExpression.IsMatch(node, default), NUnit::Is.True);
+        }
+
+        [NUnit::Test]
+        public void TrueExpression()
+        {
+            var node = LiteralExpression(SyntaxKind.TrueLiteralExpression);
+            NUnit::Assert.That(Is.TrueLiteralExpression.IsMatch(node, default), NUnit::Is.True);
+        }
+
+        [NUnit::Test]
+        public void FalseExpression()
+        {
+            var node = LiteralExpression(SyntaxKind.FalseLiteralExpression);
+            NUnit::Assert.That(Is.FalseLiteralExpression.IsMatch(node, default), NUnit::Is.True);
+        }
+
+        [NUnit::Test]
+        public void DefaultExpression()
+        {
+            var node = LiteralExpression(SyntaxKind.DefaultLiteralExpression);
+            NUnit::Assert.That(Is.DefaultLiteralExpression.IsMatch(node, default), NUnit::Is.True);
+        }
+
         [NUnit::TestCase(10)]
         public void IntToken(int value)
         {
