@@ -2,6 +2,7 @@
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using SyntaxSearch.Framework;
+using System.Collections.Immutable;
 
 namespace SyntaxSearch.Matchers
 {
@@ -15,11 +16,30 @@ namespace SyntaxSearch.Matchers
         //    _value = value
         //};
 
+        private static readonly ImmutableHashSet<SyntaxKind> NumericKinds =
+        [
+            SyntaxKind.FloatKeyword,
+            SyntaxKind.DoubleKeyword,
+            SyntaxKind.LongKeyword,
+            SyntaxKind.ULongKeyword,
+            SyntaxKind.IntKeyword,
+            SyntaxKind.UIntKeyword,
+            SyntaxKind.ShortKeyword,
+            SyntaxKind.UShortKeyword
+        ];
+
         private bool IsNodeMatchNoValue(SyntaxNode node, CaptureStore store)
         {
             if (node is ParenthesizedExpressionSyntax p)
             {
                 node = p.Expression;
+            }
+            if (node is CastExpressionSyntax
+            {
+                Type: PredefinedTypeSyntax { Keyword: { } predefined }
+            } castExpr && NumericKinds.Contains(predefined.Kind()))
+            {
+                node = castExpr.Expression;
             }
 
             if (node.IsKind(SyntaxKind.NumericLiteralExpression))
@@ -35,7 +55,7 @@ namespace SyntaxSearch.Matchers
             }
             else if (node is BinaryExpressionSyntax binary)
             {
-                return IsNodeMatch(binary.Left, store) && IsNodeMatch(binary.Right, store);
+                return IsNodeMatchNoValue(binary.Left, store) && IsNodeMatchNoValue(binary.Right, store);
             }
             else
             {
@@ -47,7 +67,7 @@ namespace SyntaxSearch.Matchers
         {
             //if (_value.HasValue)
             //{
-                return IsNodeMatch(node, store);
+                return IsNodeMatchNoValue(node, store);
             //}
             //else
             //{

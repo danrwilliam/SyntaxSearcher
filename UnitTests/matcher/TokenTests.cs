@@ -147,6 +147,8 @@ namespace SyntaxSearchUnitTests.Matcher
         [NUnit::TestCase("(2 + 1.5) / -0.5")]
         [NUnit::TestCase("(2e5 - 0.00000001) / +2.00001e-01")]
         [NUnit::TestCase("(2e5 - 0.00000001) / (+2.00001e-01 * 31.25 / 1 - 13 + 43")]
+        [NUnit::TestCase("(long)211")]
+        [NUnit::TestCase("(float)4 * (int)12.5")]
         public void NumericConstant(string source)
         {
             var expr = SyntaxFactory.ParseExpression(source);
