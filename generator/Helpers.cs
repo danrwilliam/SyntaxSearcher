@@ -60,10 +60,6 @@ namespace SyntaxSearcher.Generators
         [
             SyntaxKind.NullLiteralExpression,
             SyntaxKind.ArgListExpression,
-            SyntaxKind.StringLiteralExpression,
-            SyntaxKind.NumericLiteralExpression,
-            SyntaxKind.Utf8StringLiteralExpression,
-            SyntaxKind.CharacterLiteralExpression,
             SyntaxKind.TrueLiteralExpression,
             SyntaxKind.FalseLiteralExpression,
             SyntaxKind.DefaultLiteralExpression

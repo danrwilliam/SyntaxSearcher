@@ -18,8 +18,8 @@ namespace SyntaxSearchUnitTests.Matcher
         {
             var expr = SyntaxFactory.ParseStatement($"var obj = {input};");
             var searcher = Is.SimpleMemberAccessExpression
-                .WithName(Is.IdentifierName.WithName("Name"))
-                .WithExpression(Is.MemberName.WithName(Is.IdentifierName.WithIdentifier(Is.Identifier.WithText("A"))));
+                .WithName(Is.IdentifierName.WithText("Name"))
+                .WithExpression(Is.MemberName.WithName(Is.IdentifierName.WithText("A")));
             NUnit::Assert.That(searcher.Search(expr), NUnit::Has.Exactly(numMatches).Items);
         }
     }
