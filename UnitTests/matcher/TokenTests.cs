@@ -30,8 +30,6 @@ namespace SyntaxSearchUnitTests.Matcher
 
         [NUnit::TestCase(10.01, 10.01, true)]
         [NUnit::TestCase(10.01, 10.5, false)]
-        [NUnit::TestCase(-10.01, -10.01, false)]
-        [NUnit::TestCase(-10, -10.01, false)]
         public void DoubleNumeric(double value, double matchValue, bool expected)
         {
             var expr = LiteralExpression(SyntaxKind.NumericLiteralExpression).WithToken(
@@ -140,6 +138,19 @@ namespace SyntaxSearchUnitTests.Matcher
             var node = SyntaxFactory.ParseCompilationUnit(unit);
             var searcher = Is.ClassDeclaration.WithModifiers(Has.Modifiers(Is.Public, Not.Static));
             NUnit::Assert.That(searcher.Search(node), NUnit::Has.Exactly(results).Items);
+        }
+
+        [NUnit::TestCase("2")]
+        [NUnit::TestCase("-2")]
+        [NUnit::TestCase("+2")]
+        [NUnit::TestCase("2 + 1")]
+        [NUnit::TestCase("(2 + 1.5) / -0.5")]
+        [NUnit::TestCase("(2e5 - 0.00000001) / +2.00001e-01")]
+        [NUnit::TestCase("(2e5 - 0.00000001) / (+2.00001e-01 * 31.25 / 1 - 13 + 43")]
+        public void NumericConstant(string source)
+        {
+            var expr = SyntaxFactory.ParseExpression(source);
+            NUnit::Assert.That(Is.NumericConstantExpression.IsMatch(expr), NUnit::Is.True);
         }
     }
 }

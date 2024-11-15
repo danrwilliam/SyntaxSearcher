@@ -830,7 +830,12 @@ namespace SyntaxSearch.Matchers
 
                     builder.AppendLine("}");
 
-                    if (!classType.Constructors.Any(c => c is { DeclaredAccessibility: Accessibility.Public, CanBeReferencedByName: true, Parameters.IsEmpty: true }))
+                    if (!classType.Constructors.Any(c => c is 
+                        { 
+                            DeclaredAccessibility: Accessibility.Public, 
+                            CanBeReferencedByName: true, 
+                            Parameters.IsEmpty: true 
+                        }))
                     {
                         builder.AppendLine($"public {classType.Name}() {{ }}");
                     }
@@ -840,7 +845,29 @@ namespace SyntaxSearch.Matchers
                         string trimmedName = field.Name.Trim('_');
                         string methodName = $"{char.ToUpper(trimmedName[0])}{trimmedName.Substring(1)}";
 
-                        builder.AppendLine($@"
+                        if (field.Type.Name == "LogicalOrNodeMatcher")
+                        {
+                            var nodeMatcher = ((INamedTypeSymbol)field.Type).TypeArguments[0];
+
+                            builder.AppendLine($@"
+                            public {classType.Name} With{methodName}({nodeMatcher.ToDisplayString()} matcher)
+                            {{
+                                var copy = new {classType.Name}(this);
+                                copy.{field.Name} = matcher;
+                                return copy;
+                            }}
+
+                            public {classType.Name} With{methodName}(ILogicalMatcher matcher)
+                            {{
+                                var copy = new {classType.Name}(this);
+                                copy.{field.Name} = matcher.For<{nodeMatcher.ToDisplayString()}>();
+                                return copy;
+                            }}
+");
+                        }
+                        else
+                        {
+                            builder.AppendLine($@"
                             public {classType.Name} With{methodName}({field.Type.ToDisplayString()} matcher)
                             {{
                                 var copy = new {classType.Name}(this);
@@ -848,6 +875,7 @@ namespace SyntaxSearch.Matchers
                                 return copy;
                             }}
 ");
+                        }
                     }
                 }
 
