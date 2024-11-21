@@ -99,5 +99,16 @@ namespace SyntaxSearchUnitTests.Matcher
             var expr = SyntaxFactory.ParseExpression(source);
             NUnit::Assert.That(match.IsMatch(expr), NUnit::Is.EqualTo(isMatch));
         }
+
+        [NUnit::TestCase("if (a != null) { block(); }", true)]
+        [NUnit::TestCase("if (a != null) { block(); } else { otherStuff(); }", false)]
+        [NUnit::TestCase("if (a != null) block();", true)]
+        [NUnit::TestCase("if (a != null) block(); else otherStuff();", false)]
+        public void IfWithoutElse(string source, bool expected)
+        {
+            var matcher = Is.IfStatement.WithElse(Is.Null);
+            var node = SyntaxFactory.ParseStatement(source);
+            NUnit::Assert.That(matcher.IsMatch(node), NUnit::Is.EqualTo(expected));
+        }
     }
 }

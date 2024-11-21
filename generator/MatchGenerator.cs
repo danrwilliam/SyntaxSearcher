@@ -1351,9 +1351,6 @@ namespace SyntaxSearch.Matchers
     if (!{namedProp.Name}.IsEmpty)
     {{
         var {localName} = castNode.{namedProp.Name};
-        if ({localName} == default)
-            return false;
-
         if ({localName}.Count != {namedProp.Name}.Length)
             return false;
 
@@ -1372,9 +1369,6 @@ namespace SyntaxSearch.Matchers
     if ({namedProp.Name} != null)
     {{
         var {localName} = castNode.{namedProp.Name};
-        if ({localName} == default)
-            return false;
-
         if (!{namedProp.Name}.IsMatch({localName}, store))
             return false;
     }}
