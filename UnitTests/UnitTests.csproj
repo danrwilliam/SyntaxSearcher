@@ -126,7 +126,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="build\BuildTests.cs" />
+    <None Include="build\BuildTests.cs" />
     <Compile Include="matcher\BinaryMatcherTests.cs" />
     <Compile Include="matcher\CaptureTests.cs" />
     <Compile Include="matcher\ConstraintTests.cs" />
@@ -134,6 +134,7 @@
     <Compile Include="matcher\MaybeParensTests.cs" />
     <Compile Include="matcher\NameMatcherTests.cs" />
     <Compile Include="matcher\RewriterTests.cs" />
+    <Compile Include="matcher\SyntaxListTests.cs" />
     <Compile Include="matcher\SyntaxTests.cs" />
     <Compile Include="matcher\TokenTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

@@ -55,7 +55,7 @@ namespace SyntaxSearcher.Generators
 
             CreateIsTokenMethods(context);
 
-            GenerateParser(context, [.. generated.Select(g => g.Item1)]);
+            //GenerateParser(context, [.. generated.Select(g => g.Item1)]);
         }
 
         private void CreateIsTokenMethods(GeneratorExecutionContext context)
@@ -192,455 +192,6 @@ namespace SyntaxSearch.Framework
             return (kindToClass, abstractTypes);
         }
 
-        private void GenerateParser(GeneratorExecutionContext context, List<SyntaxClassInfo> withClasses)
-        {
-            var extraTypes = GetNonSyntaxClasses(context);
-
-            StringBuilder builder = new();
-
-            builder.AppendLine(
-@"
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-using SyntaxSearch.Matchers;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Xml;
-using System.Collections.Immutable;
-
-namespace SyntaxSearch.Parser
-{
-    public interface IFileParser
-    {
-        Searcher Parse(string filename);
-
-        Searcher ParseFromString(string xmlText);
-    }
-
-    public class SearchFileParser : IFileParser
-    {
-        private delegate INodeMatcher ParseNodeDelegate(XmlNode element, ParseNodeDelegate parseDelegate, INodeMatcher parent = null);
-
-        private const string _rootTag = ""SyntaxSearchDefinition"";
-
-        public Searcher Parse(string filename)
-        {
-            XmlDocument doc = new XmlDocument();
-            doc.Load(filename);
-
-            return ParseInternal(doc);
-        }
-
-        public Searcher ParseFromString(string xmlText)
-        {
-            XmlDocument doc = new XmlDocument();
-            doc.LoadXml(xmlText);
-
-            return ParseInternal(doc);
-        }
-
-        public Searcher FromBuilder(SyntaxSearch.Builder.XmlTreeBuilder builder)
-        {
-            return ParseInternal(builder.Document);
-        }
-
-        private Searcher ParseInternal(XmlDocument doc)
-        {
-            var docRoot = doc.SelectSingleNode(_rootTag);
-            if (docRoot is null)
-            {
-                throw new ArgumentException(""Expected root node"");
-            }
-
-            var format = docRoot.Attributes[""Format""]?.Value ?? ""Tree"";
-
-            INodeMatcher matcher;
-
-            var matchRoot = docRoot.ChildNodes.OfType<XmlElement>().FirstOrDefault();
-            if (matchRoot is null)
-            {
-                throw new ArgumentException(""empty document"");
-            }
-
-            switch (format)
-            {
-                case ""Tree"":
-                    matcher = ParseTree(matchRoot);
-                    break;
-                case ""Explicit"":
-                    matcher = ParseExplicit(matchRoot);
-                    break;
-                default:
-                    throw new ArgumentException(""unsupported Format"");
-            }
-            
-            return new Searcher(matcher);
-        }
-
-        protected virtual INodeMatcher GetMatcherHook(XmlNode node)
-        {
-            return null;
-        }
-        ");
-
-            builder.AppendLine(@"
-        private INodeMatcher ParseTree(XmlNode node, ParseNodeDelegate parseDelegate = null, INodeMatcher parent = null)
-        {
-            INodeMatcher nodeMatcher = null;
-            if (node is XmlElement element)
-            {
-                string format = element.Attributes[""Children""]?.Value ?? ""Tree"";
-                bool childrenHandled = false;
-
-                switch (element.Name)
-                {");
-
-            foreach (var type in withClasses)
-            {
-                builder.AppendLine($@"case ""{type.KindName}"":
-                {{
-                    string captureName = element.Attributes[""Name""]?.Value;
-                    string matchCapture = element.Attributes[""MatchCapture""]?.Value;
-                ");
-
-                if (type.Properties.Any() || type.Fields.Any())
-                {
-                    List<string> args = [];
-
-                    foreach (var f in type.Fields)
-                    {
-                        builder.AppendLine($"string {f.TokenName} = element.Attributes[\"{f.TokenName}\"]?.Value;");
-
-                        args.Add($"{f.FieldName.TrimStart('_')}: {f.TokenName}");
-                    }
-
-                    builder.AppendLine($@"
-    if (format == ""Named"")
-    {{
-        nodeMatcher = ParseExplicit(element, ParseTree, parent);
-        childrenHandled = true;
-    }}
-    else
-    {{
-        nodeMatcher = new {type.ClassName}({string.Join(", ", [.. args, "captureName: captureName", "matchCapture: matchCapture"])});
-    }}");
-                }
-                else
-                {
-                    builder.AppendLine($"nodeMatcher = new {type.ClassName}(captureName, matchCapture);"); 
-                }
-
-                builder.AppendLine("break; }");
-            }
-
-            AddNonSyntaxClasses(builder, extraTypes);
-
-            builder.AppendLine(@"
-                default:
-                    var custom = GetMatcherHook(node);
-                    if (custom != null)
-                        nodeMatcher = custom;
-                    else
-                        throw new ArgumentException($""unknown tag: {element.Name}"");
-                    break;
-                }
-
-                if (nodeMatcher is ITreeWalkNodeMatcher treeWalk && !childrenHandled)
-                {
-                    foreach (XmlElement child in node.ChildNodes.OfType<XmlElement>()) 
-                    {
-                        var childMatcher = ParseTree(child, ParseTree, nodeMatcher);
-                        if (childMatcher is LogicalMatcher && nodeMatcher is LogicalMatcher)
-                        {
-                            childMatcher.Accepts = NodeAccept.Node;
-                        }
-                        else
-                        {
-                            childMatcher.Accepts = NodeAccept.Child;
-                        }
-
-                        if (childMatcher != null)
-                        {
-                            treeWalk.AddChild(childMatcher);
-                        }
-                    }
-                }
-            }
-
-                return nodeMatcher;
-            }
-");
-
-
-            builder.AppendLine(@"
-        private INodeMatcher ParseExplicit(XmlNode node, ParseNodeDelegate parseDelegate = null, INodeMatcher parent = null)
-        {
-            if (node is XmlElement element)
-            {
-                parseDelegate ??= ParseExplicit;
-
-                switch (element.Name)
-                {
-        ");
-
-            foreach (var type in withClasses)
-            {
-                builder.AppendLine(@$"case ""{type.KindName}"":");
-                if (type.Properties.Any())
-                {
-                    builder.AppendLine($@"{{
-                    string captureName = element.Attributes[""Name""]?.Value;
-                    string matchCapture = element.Attributes[""MatchCapture""]?.Value;
-                    var matcher = new SyntaxSearch.Matchers.Explicit.{type.ClassName}(captureName: captureName, matchCapture: matchCapture);
-
-                    foreach (var child in element.ChildNodes.OfType<XmlNode>()) {{");
-
-                    builder.AppendLine("switch (child.Name) {");
-
-                    foreach ((IPropertySymbol property, PropertyKind generatorKind) in type.Properties)
-                    {
-                        builder.AppendLine($"case \"{property.Name}\":");
-                        if (generatorKind == PropertyKind.GenericTokenList)
-                        {
-                            builder.AppendLine($@"
-                            foreach (var listElement in child.OfType<XmlNode>()) {{
-                                var listElementMatcher = parseDelegate(listElement, parseDelegate, matcher);
-                                if (listElementMatcher is null)
-                                {{
-                                    throw new ArgumentException($""unable to build matcher for {{listElement.Name}}"");
-                                }}
-                                matcher.Add{property.Name}(listElementMatcher);
-                            }}
-");
-                        }
-                        else if (property.Type.Name == nameof(SyntaxToken))
-                        {
-                            builder.AppendLine($@"{{
-                                if (matcher.{property.Name} != null)
-                                {{
-                                    throw new ArgumentException($""expected only 1 matcher for {property.Name}"");
-                                }}
-                                
-                                var childNode = child.ChildNodes.OfType<XmlElement>().FirstOrDefault(); 
-                                TokenMatcher childMatcher = TokenMatcher.Default;
-
-                                if (child.Attributes[""Kind""]?.Value is string kindString)
-                                {{
-                                    SyntaxKind kind = (SyntaxKind)Enum.Parse(typeof(SyntaxKind), kindString);
-                                    childMatcher = childMatcher.WithKind(kind);
-                                }}
-                                matcher.{property.Name} = childMatcher; 
-}}");
-                        }
-                        else if (generatorKind == PropertyKind.Normal)
-                        {
-                            var matcher = property.Type.GetMatcherBase();
-
-                            builder.AppendLine($@"{{
-                                if (matcher.{property.Name} != null)
-                                    throw new ArgumentException($""expected only 1 matcher for {property.Name}"");
-                                
-                                var childNode = child.ChildNodes.OfType<XmlElement>().FirstOrDefault(); 
-                                INodeMatcher childMatcher = null;
-
-                                if (childNode is null)
-                                {{
-                                    childMatcher = new NotNullMatcher();
-                                }}
-                                else
-                                {{
-                                    childMatcher = parseDelegate(childNode, parseDelegate, matcher);
-                                }}
-
-                                if (childMatcher is null)
-                                    throw new ArgumentException($""unable to build matcher for {{child.Name}}"");");
-
-                            if (matcher is not ("ITokenMatcher" or "INodeMatcher"))
-                            {
-                                builder.AppendLine($"matcher.{property.Name} = childMatcher.For<{matcher}>();");
-                            }
-                            else
-                            {
-
-                                builder.AppendLine($"matcher.{property.Name} = childMatcher;");
-                            }
-                            builder.AppendLine("}");
-                        }
-                        builder.AppendLine("break;");
-                    }
-
-
-                    builder.AppendLine("default:");
-                    builder.AppendLine("throw new InvalidOperationException($\"{element.Name} does not support a child of name {child.Name}\");");
-
-                    builder.AppendLine("}");
-                    builder.AppendLine("}");
-
-                    builder.AppendLine("return matcher;");
-                    builder.AppendLine("}");
-                }
-                else
-                {
-                    builder.AppendLine($@"{{
-                    string captureName = element.Attributes[""Name""]?.Value;
-                    string matchCapture = element.Attributes[""MatchCapture""]?.Value;
-                    ");
-
-                    List<string> args = [];
-
-                    foreach (var f in type.Fields)
-                    {
-                        if (f.TypeName == "string[]")
-                        {
-                        }
-                        else
-                        {
-                            builder.AppendLine($"string {f.TokenName} = element?.Attributes[\"{f.TokenName}\"]?.Value;");
-
-                            args.Add($"{f.FieldName.Trim('_')}: {f.TokenName}");
-                        }
-                    }
-
-                    builder.AppendLine($"var matcher = new {type.ClassName}({string.Join(", ", [..args, "captureName: captureName", "matchCapture: matchCapture"])});");
-                    builder.AppendLine("return matcher;");
-                    builder.AppendLine("}");
-                }
-            }
-
-            AddNonSyntaxClasses(builder, extraTypes);
-
-            builder.AppendLine("}");
-            builder.AppendLine("}");
-            builder.AppendLine("return null;");
-            builder.AppendLine("}");
-
-            // class
-            builder.AppendLine("}");
-
-            //namespace
-            builder.AppendLine("}");
-
-            context.AddSource("SearchParser.g.cs", Utilities.Normalize(builder));
-        }
-
-        private List<(INamedTypeSymbol, ClassDeclarationSyntax, string)> GetNonSyntaxClasses(GeneratorExecutionContext context)
-        {
-            List<(INamedTypeSymbol, ClassDeclarationSyntax, string)> types = [];
-
-            foreach (var classDecl in _receiver.Collected)
-            {
-                var model = context.Compilation.GetSemanticModel(classDecl.SyntaxTree);
-                var interfaceType = model.Compilation.GetTypeByMetadataName("SyntaxSearch.Matchers.INodeMatcher");
-
-                var classType = model.GetDeclaredSymbol(classDecl);
-
-                if (!classType.AllInterfaces.Any(intf => SymbolEqualityComparer.Default.Equals(intf, interfaceType)))
-                    continue;
-                if (classType.IsAbstract || classType.TypeKind != TypeKind.Class)
-                    continue;
-                if (classType.GetAttributes().Any(attr => attr.AttributeClass.Name == "ExcludeAttribute"))
-                    continue;
-
-                types.Add((classType, classDecl, classType.Name.Replace("Matcher", "")));
-            }
-
-            return types;
-        }
-
-        private void AddNonSyntaxClasses(StringBuilder builder,
-                                         List<(INamedTypeSymbol, ClassDeclarationSyntax, string)> extraTypes)
-        {
-            foreach ((var classType, var classDecl, var tagName) in extraTypes)
-            {
-                builder.AppendLine($"case \"{tagName}\":");
-                bool takesArg = classDecl.Modifiers.Any(m => m.IsKind(SyntaxKind.PartialKeyword));
-                {
-                    IFieldSymbol[] fields = [.. classType.GetMembers()
-                                                         .OfType<IFieldSymbol>()
-                                                         .Where(f => f is {
-                                                            CanBeReferencedByName : true,
-                                                            IsStatic : false,
-                                                            DeclaredAccessibility: Accessibility.Protected or Accessibility.Private
-                                                         })];// && f.Type.Name != "INodeMatcher" && !f.Type.AllInterfaces.Any(intf => intf.Name == "INodeMatcher"))];
-
-                    builder.AppendLine("{");
-
-                    List<string> args = [];
-
-                    foreach (var f in fields)
-                    {
-                        string shortName = f.Name.Trim('_').Replace("Kind", "");
-                        string attributeName = $"{char.ToUpper(shortName[0])}{shortName.Substring(1)}";
-
-                        switch (f.Type)
-                        {
-                            case { SpecialType: SpecialType.System_String }:
-                                builder.AppendLine($"{f.Type} {shortName} = default;");
-                                builder.AppendLine(@$"{shortName} = element.Attributes[""{attributeName}""]?.Value;");
-                                args.Add(shortName);
-                                break;
-
-                            case { SpecialType: SpecialType.System_Boolean }:
-                                builder.AppendLine($"{f.Type} {shortName} = default;");
-                                builder.AppendLine($@"
-                                if (element.Attributes[""{attributeName}""]?.Value is string {shortName}Raw)
-                                {{
-                                    {shortName} = bool.Parse({shortName}Raw);
-                                }}");
-                                args.Add(shortName);
-                                break;
-
-                            case { TypeKind: TypeKind.Enum }:
-                                builder.AppendLine($"{f.Type} {shortName} = default;");
-                                builder.AppendLine($@"
-                                if (element.Attributes[""{attributeName}""]?.Value is string {shortName}Raw)
-                                {{
-                                    {shortName} = ({f.Type.ToDisplayString()})Enum.Parse(typeof({f.Type.ToDisplayString()}), {shortName}Raw);
-                                }}");
-                                args.Add(shortName);
-                                break;
-
-                            case { TypeKind: TypeKind.Interface, Name: "INodeMatcher" }:
-                                args.Add($"{shortName}Nested");
-                                builder.AppendLine($@"
-                                    INodeMatcher {shortName}Nested = default;
-                                    if (element.FirstChild is not null)
-                                    {{
-                                        {shortName}Nested = ParseTree(element.FirstChild, ParseTree, null);
-                                    }}
-                                ");
-                                break;
-
-                            default:
-                                break;
-                        }
-                    }
-
-                    if (classType.AllInterfaces.Any(intf => intf is { Name: "ITreeWalkNodeMatcher "}))
-                    {
-                        builder.AppendLine(@$"
-                                var matcher = new {classType.Name}({string.Join(", ", args)});
-                                
-                                foreach (var c in element.ChildNodes.OfType<XmlElement>())
-                                {{
-                                    var childMatcher = parseDelegate(c, parseDelegate, matcher);
-                                    if (childMatcher != null)
-                                        matcher.AddChild(childMatcher);
-                                }}
-                                return matcher;");
-                    }
-                    else
-                    {
-                        builder.AppendLine($"return new {classType.Name}({string.Join(", ", args)});");
-                    }
-
-                    builder.AppendLine("}");
-                }
-            }
-        }
-
         private void CompletePartialClasses(GeneratorExecutionContext context, Compilation injectedCompilation)
         {
             Compilation compilation = injectedCompilation;
@@ -697,20 +248,38 @@ namespace SyntaxSearch.Framework
                     methodName = returnType.Name.Replace("Matcher", "");
                 }
 
-                if (arguments is { HasValue: true, Value: not "" or null })
+                bool methods = false;
+                foreach (var useConstructor in returnType.Constructors.Where(c => c is { IsStatic: false, DeclaredAccessibility: Accessibility.Public or Accessibility.Internal }
+                                                                        && c.GetAttributes().Any(attr => attr.AttributeClass is { Name: "UseConstructorAttribute" })))
                 {
-                    builder.AppendLine($"public static {returnType.ToDisplayString()} {methodName}({arguments.Value}) => {ctor};");
+                    var parameters = string.Join(", ", useConstructor.Parameters.Select(p => $"{p.Type.ToDisplayString()} {p.Name}"));
+                    var argNames = string.Join(", ", useConstructor.Parameters.Select(p => p.Name));
+
+                    builder.AppendLine($@"
+                        public static {returnType.ToDisplayString()} {methodName}({parameters}) => new {returnType.ToDisplayString()}({argNames});
+");
+
+                    methods = true;
                 }
-                else
+
+                if (!methods)
                 {
-                    builder.AppendLine($"public static {returnType.ToDisplayString()} {methodName} => {ctor};");
+                    if (arguments is { HasValue: true, Value: not "" or null })
+                    {
+                        builder.AppendLine($"public static {returnType.ToDisplayString()} {methodName}({arguments.Value}) => {ctor};");
+                    }
+                    else
+                    {
+                        builder.AppendLine($"public static {returnType.ToDisplayString()} {methodName} => {ctor};");
+                    }
                 }
             }
 
             foreach (var classDecl in _receiver.Collected)
             {
                 var model = compilation.GetSemanticModel(classDecl.SyntaxTree);
-                var interfaceType = model.Compilation.GetTypeByMetadataName("SyntaxSearch.Matchers.INodeMatcher");
+                var nodeMatcherInterface = model.Compilation.GetTypeByMetadataName("SyntaxSearch.Matchers.INodeMatcher");
+                var syntaxListMatcherInterface = model.Compilation.GetTypeByMetadataName("SyntaxSearch.Matchers.ISyntaxListMatcher");
 
                 var stringType = model.Compilation.GetSpecialType(SpecialType.System_String);
                 var boolType = model.Compilation.GetSpecialType(SpecialType.System_Boolean);
@@ -719,10 +288,19 @@ namespace SyntaxSearch.Framework
 
                 var classType = model.GetDeclaredSymbol(classDecl);
 
-                if (!classType.AllInterfaces.Any(intf => SymbolEqualityComparer.Default.Equals(intf, interfaceType)))
+                if (!classType.AllInterfaces.Any(intf => SymbolEqualityComparer.Default.Equals(intf, nodeMatcherInterface))
+                    && !classType.AllInterfaces.Any(intf => SymbolEqualityComparer.Default.Equals(intf, syntaxListMatcherInterface)))
+                {
                     continue;
+                }
                 if (classType.IsAbstract || classType.TypeKind != TypeKind.Class)
+                {
                     continue;
+                }
+                if (classType.AllInterfaces.Any(intf => intf is { Name: "IExplicitNodeMatcher", Arity: 1 }))
+                {
+                    continue;
+                }
 
                 bool isOverride = isOverrideWithProperties(classType, stringType);
 
@@ -1028,7 +606,7 @@ using System.Collections.Immutable;
 
 namespace SyntaxSearch.Matchers.Explicit
 {{
-    public abstract partial class {name} : {baseType}
+    public abstract partial class {name} : {baseType}, IExplicitNodeMatcher<{abstractClass.Name}>
     {{
         protected {name}(string captureName, string matchName) : base(captureName, matchName)
         {{
@@ -1159,7 +737,7 @@ namespace SyntaxSearch.Matchers
 
             builder.AppendLine("namespace SyntaxSearch.Matchers.Explicit {");
 
-            builder.AppendLine($"public partial class {kind.Name}Matcher : {baseType} {{");
+            builder.AppendLine($"public partial class {kind.Name}Matcher : {baseType}, IExplicitNodeMatcher<{classType.Name}> {{");
 
             foreach (var i in fields)
             {
@@ -1172,19 +750,19 @@ namespace SyntaxSearch.Matchers
             {
                 if (generatorKind == PropertyKind.GenericTokenList)
                 {
-                    builder.AppendLine($"public ImmutableArray<INodeMatcher> {namedProp.Name} {{ get;  internal set; }} = ImmutableArray.Create<INodeMatcher>();");
+                    var namedType = (INamedTypeSymbol)namedProp.Type;
+                    var typeArgument = namedType.TypeArguments[0];
 
-                    builderMethods.AppendLine($@"internal void Add{namedProp.Name}(INodeMatcher matcher)
+                    builder.AppendLine($"public ISyntaxListMatcher {namedProp.Name} {{ get; internal set; }} = default;");
+
+                    builderMethods.AppendLine($@"
+
+                    public {kind.Name}Matcher With{namedProp.Name}(params INodeMatcher[] matchers)
                     {{
-                        if (matcher is null)
-                        {{
-                            throw new ArgumentNullException(nameof(matcher));
-                        }}
-                        {namedProp.Name} = {namedProp.Name}.Add(matcher);
-                    }}");
+                        return With{namedProp.Name}(new SyntaxListEqualTo(matchers));
+                    }}
 
-
-                    builderMethods.AppendLine($@"public {kind.Name}Matcher With{namedProp.Name}(params INodeMatcher[] matcher)
+                    public {kind.Name}Matcher With{namedProp.Name}(ISyntaxListMatcher matcher)
                     {{
                         if (matcher is null)
                         {{
@@ -1193,7 +771,7 @@ namespace SyntaxSearch.Matchers
                         
                         var copy = new {kind.Name}Matcher(this)
                         {{
-                            {namedProp.Name} = [.. matcher]
+                            {namedProp.Name} = matcher
                         }};
                         return copy;
                     }}");
@@ -1348,16 +926,12 @@ namespace SyntaxSearch.Matchers
                 if (generatorKind == PropertyKind.GenericTokenList)
                 {
                     builder.AppendLine(@$"
-    if (!{namedProp.Name}.IsEmpty)
+    if ({namedProp.Name} is not null)
     {{
         var {localName} = castNode.{namedProp.Name};
-        if ({localName}.Count != {namedProp.Name}.Length)
-            return false;
-
-        for (int i = 0; i < {namedProp.Name}.Length; i++)
+        if (!{namedProp.Name}.IsMatch({localName}, store))
         {{
-            if (!{namedProp.Name}[i].IsMatch({localName}[i], store))
-                return false;
+            return false;
         }}
     }}
 ");

@@ -25,26 +25,12 @@ namespace SyntaxSearchUnitTests.Matcher
         private readonly CompilationUnitSyntax _root;
         private readonly int _numIdentifierName;
         private readonly int _numMethods;
-        private SyntaxSearch.Parser.SearchFileParser _parser;
 
         public MatcherTests(string code, int numIdentifierName, int methods)
         {
             _root = SyntaxFactory.ParseCompilationUnit(code);
             _numIdentifierName = numIdentifierName;
             _numMethods = methods;
-        }
-
-        [NUnit::SetUp]
-        public void Setup()
-        {
-            _parser = new SyntaxSearch.Parser.SearchFileParser();
-        }
-
-
-        [NUnit::Test]
-        public void TestEmpty()
-        {
-            NUnit::Assert.Throws<ArgumentException>(() => _parser.ParseFromString("<SyntaxSearchDefinition></SyntaxSearchDefinition>"));
         }
 
         [NUnit::Test]

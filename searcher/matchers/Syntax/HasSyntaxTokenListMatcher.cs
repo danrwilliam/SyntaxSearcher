@@ -80,6 +80,14 @@ namespace SyntaxSearch.Matchers
             };
         }
 
+        public AndSyntaxTokenListMatcher With(ISyntaxTokenListMatcher matcher)
+        {
+            return new AndSyntaxTokenListMatcher
+            {
+                _matchers = _matchers.Add(matcher)
+            };
+        }
+
         public bool IsMatch(SyntaxTokenList list, CaptureStore store)
         {
             foreach (var t in _matchers)

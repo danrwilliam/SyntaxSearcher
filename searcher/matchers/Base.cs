@@ -1,4 +1,5 @@
 ﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Immutable;
@@ -39,6 +40,11 @@ namespace SyntaxSearch.Matchers
     public interface ISyntaxTokenListMatcher
     {
         bool IsMatch(SyntaxTokenList list, CaptureStore store);
+    }
+
+    public interface ISyntaxListMatcher
+    {
+        bool IsMatch<T>(IReadOnlyList<T> list, CaptureStore store) where T : SyntaxNode;
     }
 
     public interface ITreeWalkNodeMatcher : INodeMatcher

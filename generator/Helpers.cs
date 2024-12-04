@@ -28,9 +28,9 @@ namespace SyntaxSearcher.Generators
             return [.. parameterType.GetMembers().OfType<IPropertySymbol>().Where(p => p.CanBeReferencedByName).Select(f =>
             {
                 if (f.Type.IsSubclassOf(syntaxNodeType))
+                {
                     return new { prop = f, isList = PropertyKind.Normal, include = true };
-
-
+                }
                 if (f.Name == "Modifiers")
                 {
                     return new { prop = f, isList = PropertyKind.TokenList, include = true };
