@@ -7,6 +7,7 @@ using System.Collections.Immutable;
 using System.Collections.Generic;
 using System.Text;
 using Microsoft.CodeAnalysis.Text;
+using System.Diagnostics;
 
 namespace SyntaxSearcher.Generators
 {
@@ -186,7 +187,7 @@ namespace SyntaxSearch.Framework
                     .SelectMany(b => b.BaseTypes())
                     .Distinct<ITypeSymbol>(SymbolEqualityComparer.Default)
                     .OfType<INamedTypeSymbol>()
-                    .Where(t => t.IsAbstract && !t.Name.StartsWith("Base")),
+                    .Where(t => t.IsAbstract), // && !t.Name.StartsWith("Base")),
                 SymbolEqualityComparer.Default);
 
             return (kindToClass, abstractTypes);
@@ -731,9 +732,14 @@ namespace SyntaxSearch.Matchers
 
             string baseType = classType.BaseType switch
             {
-                { IsAbstract: true } bt when !bt.Name.StartsWith("Base") => $"{bt.Name}Matcher",
+                { IsAbstract: true } bt => $"{bt.Name}Matcher",
                 _ => "ExplicitNodeMatcher"
             };
+
+            if (baseType == "ExplicitNodeMatcher")
+            {
+                Trace.WriteLine($"{classType.ToDisplayString()} couldn't base type for matcher (base type = {classType.BaseType.ToDisplayString()})");
+            }
 
             builder.AppendLine("namespace SyntaxSearch.Matchers.Explicit {");
 
@@ -784,7 +790,7 @@ namespace SyntaxSearch.Matchers
                     {
                         { } when generatorKind == PropertyKind.TokenList => ("ISyntaxTokenListMatcher", "ISyntaxTokenListMatcher"),
                         { Name: nameof(SyntaxToken) } => ("ITokenMatcher", "ITokenMatcher"),
-                        { IsAbstract: true } t when !t.Name.StartsWith("Base") => ($"{t.Name}Matcher", $"LogicalOrNodeMatcher<{t.Name}Matcher>"),
+                        { IsAbstract: true } t => ($"{t.Name}Matcher", $"LogicalOrNodeMatcher<{t.Name}Matcher>"),
                         _ => ("INodeMatcher", "INodeMatcher")
                     };
 
