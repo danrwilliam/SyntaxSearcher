@@ -27,7 +27,8 @@ namespace SyntaxSearcher.Generators
         {
             {nameof(SyntaxKind.AddExpression), nameof(BinaryExpressionSyntax) },
             {nameof(SyntaxKind.AddAssignmentExpression), nameof(AssignmentExpressionSyntax) },
-            {nameof(SyntaxKind.UnaryPlusExpression), nameof(PostfixUnaryExpressionSyntax) },
+            {nameof(SyntaxKind.UnaryPlusExpression), nameof(PrefixUnaryExpressionSyntax) },
+            {nameof(SyntaxKind.PostIncrementExpression), nameof(PostfixUnaryExpressionSyntax) },
             {nameof(SyntaxKind.NumericLiteralExpression), nameof(LiteralExpressionSyntax) },
             {nameof(SyntaxKind.ClassConstraint), nameof(ClassOrStructConstraintSyntax) },
             {nameof(SyntaxKind.BaseConstructorInitializer), nameof(ConstructorInitializerSyntax) },
