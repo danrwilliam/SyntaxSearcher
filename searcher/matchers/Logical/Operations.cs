@@ -89,7 +89,7 @@ namespace SyntaxSearch.Matchers
 
         public override bool IsMatch(SyntaxNode node, CaptureStore store)
         {
-            if (!string.IsNullOrWhiteSpace(_name) 
+            if (!string.IsNullOrWhiteSpace(_name)
                 && store.CapturedGroups.TryGetValue(_name, out var capturedNode))
             {
                 if (capturedNode is VariableDeclaratorSyntax variableDeclSyntax

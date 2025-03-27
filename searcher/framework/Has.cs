@@ -14,7 +14,7 @@ namespace SyntaxSearch.Framework
         /// </summary>
         /// <param name="matchers"></param>
         /// <returns></returns>
-        public static AndSyntaxTokenListMatcher Modifiers(params ISyntaxTokenListMatcher[] matchers) 
+        public static AndSyntaxTokenListMatcher Modifiers(params ISyntaxTokenListMatcher[] matchers)
             => new AndSyntaxTokenListMatcher().With(matchers);
     }
 }

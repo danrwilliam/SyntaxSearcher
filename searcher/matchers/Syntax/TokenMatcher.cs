@@ -20,7 +20,7 @@ namespace SyntaxSearch.Matchers
 
         public static TokenMatcher Default { get; } = new(default, default, default, default);
 
-        public TokenMatcher WithKind(SyntaxKind kind) =>  new(kind, _text, _valueText, _value);
+        public TokenMatcher WithKind(SyntaxKind kind) => new(kind, _text, _valueText, _value);
         public TokenMatcher WithText(string text) => new(_kind, text, _valueText, _value);
         public TokenMatcher WithValueText(string valueText) => new(_kind, _text, valueText, _value);
         public TokenMatcher WithValue(object value) => new(_kind, _text, _valueText, value);
@@ -47,5 +47,7 @@ namespace SyntaxSearch.Matchers
         }
 
         public static implicit operator TokenMatcher(SyntaxKind kind) => Default.WithKind(kind);
+
+        public static implicit operator TokenMatcher(string name) => Default.WithText(name);
     }
 }

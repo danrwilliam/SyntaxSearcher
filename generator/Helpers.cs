@@ -45,7 +45,6 @@ namespace SyntaxSearcher.Generators
                 if (n.TypeArguments.Length == 1 && n.TypeArguments[0].IsSubclassOf(syntaxNodeType))
                 {
                     return new { prop = f, isList = PropertyKind.GenericTokenList, include = true };
-
                 }
                 return new { prop = f, isList = PropertyKind.Normal, include = false };
             })

@@ -14,7 +14,7 @@ namespace SyntaxSearcher.Generators
     [Generator]
     public class MatcherGenerator : ISourceGenerator
     {
-        private static ImmutableArray<string> IgnoreKinds = ImmutableArray.Create("Keyword", "Trivia");
+        private static readonly ImmutableArray<string> IgnoreKinds = ImmutableArray.Create("Keyword", "Trivia");
         private SyntaxCollector<ClassDeclarationSyntax> _receiver;
 
         /// <summary>
@@ -63,14 +63,14 @@ namespace SyntaxSearcher.Generators
         private void CreateIsTokenMethods(GeneratorExecutionContext context)
         {
             StringBuilder b = new();
-            b.AppendLine($@"
+            b.AppendLine(@"
 using SyntaxSearch.Matchers;
 using Microsoft.CodeAnalysis.CSharp;
 
 namespace SyntaxSearch.Framework
-{{
+{
     public static partial class Is
-    {{
+    {
 ");
 
             var syntaxKind = context.Compilation.GetTypeByMetadataName(typeof(SyntaxKind).FullName);
@@ -79,7 +79,6 @@ namespace SyntaxSearch.Framework
             {
                 if (kind.Name == nameof(SyntaxKind.NumericLiteralToken))
                 {
-
                     b.AppendLine($"public static TokenMatcher {kind.Name} => TokenMatcher.Default.WithKind(SyntaxKind.{kind.Name});");
                     foreach (var numeric in NumericTypes)
                     {
@@ -100,7 +99,6 @@ namespace SyntaxSearch.Framework
                     b.AppendLine($"public static TokenMatcher {kind.Name} => TokenMatcher.Default.WithKind(SyntaxKind.{kind.Name});");
                 }
             }
-
 
             b.AppendLine("} }");
 
@@ -410,11 +408,11 @@ namespace SyntaxSearch.Matchers
 
                     builder.AppendLine("}");
 
-                    if (!classType.Constructors.Any(c => c is 
-                        { 
-                            DeclaredAccessibility: Accessibility.Public, 
-                            CanBeReferencedByName: true, 
-                            Parameters.IsEmpty: true 
+                    if (!classType.Constructors.Any(c => c is
+                        {
+                            DeclaredAccessibility: Accessibility.Public,
+                            CanBeReferencedByName: true,
+                            Parameters.IsEmpty: true
                         }))
                     {
                         builder.AppendLine($"public {classType.Name}() {{ }}");
@@ -500,13 +498,13 @@ namespace SyntaxSearch.Matchers
 
             BuildAbstractMatcherClasses(context, abstractClasses);
 
-            StringBuilder isBuilder = new StringBuilder();
-            isBuilder.AppendLine($@"using SyntaxSearch.Matchers.Explicit;
+            StringBuilder isBuilder = new();
+            isBuilder.AppendLine(@"using SyntaxSearch.Matchers.Explicit;
 
 namespace SyntaxSearch.Framework
-{{
+{
     public static partial class Is
-    {{");
+    {");
 
             foreach (var entry in classes)
             {
@@ -541,15 +539,14 @@ namespace SyntaxSearch.Framework
                     // type, node access, field name
                     List<MatchField> fields = [];
 
-                    foreach (var kvp in TreeBuilderGenerator.TokenProperties)
+                    foreach (var kvp in TokenUtils.Properties)
                     {
                         var property = associatedType.GetAllMembers(kvp.Key).OfType<IPropertySymbol>().FirstOrDefault();
-                        if (property != null && property.Type.GetAllMembers(kvp.Value).FirstOrDefault() is IPropertySymbol)
+                        if (property?.Type.GetAllMembers(kvp.Value).FirstOrDefault() is IPropertySymbol)
                         {
                             if (SymbolEqualityComparer.Default.Equals(property.Type, syntaxTokenList))
                             {
                                 fields.Add(("string[]", kvp.Key, "Value", GenerateFieldName(kvp.Key)));
-
                             }
                             else
                             {
@@ -576,7 +573,7 @@ namespace SyntaxSearch.Framework
             // namespace
             isBuilder.AppendLine("}");
 
-            context.AddSource($"Is.Syntax.g.cs", Utilities.Normalize(isBuilder));
+            context.AddSource("Is.Syntax.g.cs", Utilities.Normalize(isBuilder));
 
             return newTrees;
         }
@@ -644,7 +641,8 @@ namespace SyntaxSearch.Matchers.Explicit
 
             if (className != null)
             {
-                builder.AppendLine(@$"
+                builder.AppendLine($$"""
+
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -657,27 +655,28 @@ using System.Collections.Immutable;
 
 
 namespace SyntaxSearch.Matchers
-{{
-    public class {kind.Name}Matcher : NodeMatcher
-    {{
+{
+    public class {{kind.Name}}Matcher : NodeMatcher
+    {
 
-        public {kind.Name}Matcher(string captureName = null, string matchCapture = null) : base(
-            SyntaxKind.{kind.Name},
+        public {{kind.Name}}Matcher(string captureName = null, string matchCapture = null) : base(
+            SyntaxKind.{{kind.Name}},
             captureName,
             matchCapture)
-        {{
-        }}
+        {
+        }
 
-        public {kind.Name}Matcher({className} node) : base(SyntaxKind.{kind.Name}, null, null)
-        {{
-            if (!node.IsKind(SyntaxKind.{kind.Name}))
-            {{
-                throw new ArgumentException($""expected {{nameof(node)}} to be of kind {kind.Name}, but got {{node.Kind().ToString()}}"");
-            }}
-        }}
-    }}
-}}
-");
+        public {{kind.Name}}Matcher({{className}} node) : base(SyntaxKind.{{kind.Name}}, null, null)
+        {
+            if (!node.IsKind(SyntaxKind.{{kind.Name}}))
+            {
+                throw new ArgumentException($"expected {nameof(node)} to be of kind {{kind.Name}}, but got {node.Kind().ToString()}");
+            }
+        }
+    }
+}
+
+""");
 
                 if (namedProperties.Any())
                 {
@@ -716,7 +715,6 @@ namespace SyntaxSearch.Matchers
                     GenerateExplicitMatcherClass(kind, classType, [], namedProperties, builder, classes, context);
                 }
             }
-
 
             return builder.ToString();
         }
@@ -858,7 +856,6 @@ namespace SyntaxSearch.Matchers
     ", ",
     [.. fields.Select(i => $"{i.TypeName} {i.FieldName.TrimStart('_')} = default"), "string captureName = null, string matchCapture = null"]);
 
-
             builder.AppendLine($@"
         public {kind.Name}Matcher(
             {constructorArgs}) : base(
@@ -896,13 +893,11 @@ namespace SyntaxSearch.Matchers
                 {
                     var t = context.Compilation.GetSpecialType(numeric);
                     builderMethods.AppendLine($"public {kind.Name}Matcher WithNumber({t.ToDisplayString()} value) " +
-                        $"=> WithToken(SyntaxSearch.Framework.Is.Number(value));");
+                        "=> WithToken(SyntaxSearch.Framework.Is.Number(value));");
                 }
             }
 
             builder.AppendLine(builderMethods.ToString());
-
-
 
             builder.AppendLine($@"
                 protected override bool IsNodeMatch(SyntaxNode node, CaptureStore store) {{
@@ -942,7 +937,6 @@ namespace SyntaxSearch.Matchers
         }}
     }}
 ");
-
                 }
                 else
                 {
@@ -966,7 +960,7 @@ namespace SyntaxSearch.Matchers
 ");
         }
 
-        private readonly Lazy<string> NewLineLazy = new Lazy<string>(() =>
+        private readonly Lazy<string> NewLineLazy = new(() =>
         {
             StringBuilder b = new();
             b.AppendLine();

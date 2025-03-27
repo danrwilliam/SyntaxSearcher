@@ -17,7 +17,7 @@ namespace SyntaxSearch.Matchers
 
         public SyntaxListContainsMatcher WithElement(ILogicalMatcher matcher) => new(matcher);
 
-        public SyntaxListContainsMatcher WithElement<TNode>(IExplicitNodeMatcher<TNode> matcher) where TNode: SyntaxNode => new(matcher);
+        public SyntaxListContainsMatcher WithElement<TNode>(IExplicitNodeMatcher<TNode> matcher) where TNode : SyntaxNode => new(matcher);
 
         public sealed override bool IsMatch<TNode>(IReadOnlyList<TNode> list, CaptureStore store)
         {

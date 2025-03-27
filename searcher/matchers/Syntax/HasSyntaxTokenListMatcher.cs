@@ -44,7 +44,6 @@ namespace SyntaxSearch.Matchers
 
         public DoesNotHaveSyntaxTokenListMatcher NoneAre(SyntaxKind kind)
         {
-
             var copy = new DoesNotHaveSyntaxTokenListMatcher
             {
                 _isNotKind = _isNotKind.Add(kind)

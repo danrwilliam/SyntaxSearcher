@@ -23,13 +23,13 @@ namespace SyntaxSearcher.Generators
         }
 
         /// <summary>
-        /// Parses given string as a <see cref="SyntaxTree"/> and 
+        /// Parses given string as a <see cref="SyntaxTree"/> and
         /// normalizes the whitespace
         /// </summary>
         /// <remarks>
         /// This avoids needing to handle indentation when building up
         /// source generator text
-        /// </remarks>/// 
+        /// </remarks>///
         /// <param name="text"></param>
         /// <returns>normalized string</returns>
         public static string Normalize(string text)

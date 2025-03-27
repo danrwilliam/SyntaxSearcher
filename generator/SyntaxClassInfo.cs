@@ -15,7 +15,7 @@ namespace SyntaxSearcher.Generators
         public string KindName { get; set; }
         public string ClassName { get; set; }
 
-        public SyntaxKind Kind { get; set;  }
+        public SyntaxKind Kind { get; set; }
 
         public IReadOnlyList<MatchProperty> Properties { get; internal set; } = [];
 

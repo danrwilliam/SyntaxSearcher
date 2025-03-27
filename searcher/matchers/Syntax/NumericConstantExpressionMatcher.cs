@@ -35,9 +35,9 @@ namespace SyntaxSearch.Matchers
                 node = p.Expression;
             }
             if (node is CastExpressionSyntax
-            {
-                Type: PredefinedTypeSyntax { Keyword: { } predefined }
-            } castExpr && NumericKinds.Contains(predefined.Kind()))
+                {
+                    Type: PredefinedTypeSyntax { Keyword: { } predefined }
+                } castExpr && NumericKinds.Contains(predefined.Kind()))
             {
                 node = castExpr.Expression;
             }
@@ -67,7 +67,7 @@ namespace SyntaxSearch.Matchers
         {
             //if (_value.HasValue)
             //{
-                return IsNodeMatchNoValue(node, store);
+            return IsNodeMatchNoValue(node, store);
             //}
             //else
             //{

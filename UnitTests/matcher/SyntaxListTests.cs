@@ -11,22 +11,22 @@ namespace SyntaxSearchUnitTests.Matcher
     [NUnit::TestFixture]
     public class SyntaxListTests
     {
-        private const string ClassWith3Members = $@"
+        private const string ClassWith3Members = @"
     public class Test
-    {{
+    {
         private readonly int _field;
         public int Value => _field;
 
         public Test(int value)
-        {{
+        {
             _field = value;
-        }}
-    }}
+        }
+    }
 ";
-        private const string EmptyClass = $@"
+        private const string EmptyClass = @"
     public class Test
-    {{
-    }}
+    {
+    }
 ";
 
         [NUnit::TestCase(1, false)]

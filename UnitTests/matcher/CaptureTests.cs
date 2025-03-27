@@ -24,7 +24,7 @@ namespace SyntaxSearchUnitTests.Matcher
                                     Is.SimpleMemberAccessExpression
                                         .WithExpression(Does.Match("name")))));
 
-            var expr = SyntaxFactory.ParseStatement($@"
+            var expr = SyntaxFactory.ParseStatement(@"
                 if (a != null)
                     a.Method();
 ");
@@ -48,7 +48,7 @@ namespace SyntaxSearchUnitTests.Matcher
                                     Is.SimpleMemberAccessExpression
                                         .WithExpression(Does.Match("name")))));
 
-            var expr = SyntaxFactory.ParseStatement($@"
+            var expr = SyntaxFactory.ParseStatement(@"
                 if (a.b.c.d.e != null)
                     a.b.c.d.e.Method();
 ");
@@ -72,7 +72,7 @@ namespace SyntaxSearchUnitTests.Matcher
                                     Is.SimpleMemberAccessExpression
                                         .WithExpression(Does.Match("name")))));
 
-            var expr = SyntaxFactory.ParseStatement($@"
+            var expr = SyntaxFactory.ParseStatement(@"
                 if (a.b.c.d.e != null)
                     a.b.c.d.e.g.Method();
 ");
@@ -87,15 +87,15 @@ namespace SyntaxSearchUnitTests.Matcher
                 .WithStatement(Is.Anything.Capture("trueBranch"))
                 .WithElse(Is.ElseClause.WithStatement(Does.Match("trueBranch")));
 
-            var expr = SyntaxFactory.ParseStatement($@"
+            var expr = SyntaxFactory.ParseStatement(@"
                 if (a.b.Value > 100)
-                {{
+                {
                     Execute(a);
-                }}
+                }
                 else
-                {{
+                {
                     Execute(a);
-                }}");
+                }");
 
             NUnit::Assert.That(matcher.IsMatch(expr), NUnit::Is.True);
         }

@@ -70,7 +70,7 @@ namespace SyntaxSearch.Matchers
         protected virtual bool DoChildNodesMatch(SyntaxNode node, CaptureStore store)
         {
             ImmutableArray<SyntaxNode> childNodes = [.. node.ChildNodes()];
-            ImmutableArray<INodeMatcher> childMatchers = [..Children.Where(c => c.Accepts == NodeAccept.Child)];
+            ImmutableArray<INodeMatcher> childMatchers = [.. Children.Where(c => c.Accepts == NodeAccept.Child)];
 
             // if there aren't any child matchers, treat that as a match
             if (childMatchers.IsEmpty)
@@ -80,7 +80,7 @@ namespace SyntaxSearch.Matchers
             if (childMatchers.Length != childNodes.Length)
                 return false;
 
-            var zipped = childMatchers.Zip(childNodes, (m, c) => (m ,c));
+            var zipped = childMatchers.Zip(childNodes, (m, c) => (m, c));
             foreach (var (matcher, childNode) in zipped)
             {
                 if (!matcher.IsMatch(childNode, store))
@@ -118,6 +118,5 @@ namespace SyntaxSearch.Matchers
 
             return true;
         }
-
     }
 }

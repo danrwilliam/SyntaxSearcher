@@ -67,14 +67,14 @@ namespace SyntaxSearch.Matchers
     public class CaptureStore
     {
         /// <summary>
-        /// Collection of named captures 
+        /// Collection of named captures
         /// </summary>
         public Dictionary<string, SyntaxNode> CapturedGroups { get; } = [];
 
         /// <summary>
         /// Additional non-named captures
         /// </summary>
-        public List<SyntaxNode> AdditionalCaptures { get;  } = [];
+        public List<SyntaxNode> AdditionalCaptures { get; } = [];
 
         public SyntaxNode Override { get; set; } = default;
 
@@ -92,11 +92,11 @@ namespace SyntaxSearch.Matchers
 
         public abstract bool IsMatch(SyntaxNode node, CaptureStore store);
 
-        public BaseMatcher(BaseMatcher copy)
+        protected BaseMatcher(BaseMatcher copy)
         {
         }
 
-        public BaseMatcher()
+        protected BaseMatcher()
         {
         }
     }

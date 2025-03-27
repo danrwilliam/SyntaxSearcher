@@ -131,6 +131,7 @@
     <Compile Include="matcher\CaptureTests.cs" />
     <Compile Include="matcher\ConstraintTests.cs" />
     <Compile Include="matcher\DescendantTest.cs" />
+    <Compile Include="matcher\ImplicitOperatorTests.cs" />
     <Compile Include="matcher\MatcherTests.cs" />
     <Compile Include="matcher\MaybeParensTests.cs" />
     <Compile Include="matcher\NameMatcherTests.cs" />

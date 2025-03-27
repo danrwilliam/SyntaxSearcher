@@ -96,7 +96,7 @@ namespace SyntaxSearchUnitTests.Matcher
         [NUnit::Test]
         public void BuiltInType(
             [NUnit::ValueSource(nameof(BuiltInTypeKinds))]
-            SyntaxKind matchKind, 
+            SyntaxKind matchKind,
             [NUnit::ValueSource(nameof(BuiltInTypeKinds))]
             SyntaxKind typeKind)
         {
@@ -108,9 +108,7 @@ namespace SyntaxSearchUnitTests.Matcher
             bool expected = matchKind == typeKind;
 
             NUnit::Assert.That(matcher.IsMatch(property), NUnit::Is.EqualTo(expected));
-
         }
-
 
         [NUnit::TestCase("public class Test { }", 1)]
         [NUnit::TestCase("private class Test { }", 0)]
