@@ -10,11 +10,6 @@ namespace SyntaxSearch.Matchers.Explicit
         public static implicit operator ArgumentMatcher(ExpressionSyntaxMatcher expression) => new ArgumentMatcher().WithExpression(expression);
     }
 
-    public partial class IdentifierNameMatcher
-    {
-        public static implicit operator IdentifierNameMatcher(string name) => new IdentifierNameMatcher().WithText(name);
-    }
-
     public partial class ArgumentListMatcher
     {
         public ArgumentListMatcher WithArguments(params ExpressionSyntaxMatcher[] arguments)

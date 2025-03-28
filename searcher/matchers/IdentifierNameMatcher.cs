@@ -8,5 +8,7 @@ namespace SyntaxSearch.Matchers.Explicit
         {
             return WithIdentifier(Is.Identifier.WithText(name));
         }
+
+        public static implicit operator IdentifierNameMatcher(string name) => new IdentifierNameMatcher().WithText(name);
     }
 }
