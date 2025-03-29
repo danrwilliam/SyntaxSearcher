@@ -694,31 +694,7 @@ using System.Xml;
 using System.Collections.Immutable;
 
 
-namespace SyntaxSearch.Matchers
-{
-    public class {{kind.Name}}Matcher : NodeMatcher
-    {
-
-        public {{kind.Name}}Matcher() : base(SyntaxKind.{{kind.Name}})
-        {
-        }
-
-        public {{kind.Name}}Matcher({{className}} node) : base(SyntaxKind.{{kind.Name}})
-        {
-            if (!node.IsKind(SyntaxKind.{{kind.Name}}))
-            {
-                throw new ArgumentException($"expected {nameof(node)} to be of kind {{kind.Name}}, but got {node.Kind().ToString()}");
-            }
-        }
-    }
-}
-
 """);
-
-                if (namedProperties.Any())
-                {
-                    GenerateExplicitMatcherClass(kind, classType, [], namedProperties, builder, classes, context);
-                }
             }
             else
             {
