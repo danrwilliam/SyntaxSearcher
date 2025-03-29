@@ -2,7 +2,6 @@
 using NUnit = NUnit.Framework;
 using SyntaxSearch;
 using SyntaxSearch.Framework;
-using SyntaxSearch.Matchers.Explicit;
 using SyntaxSearch.Matchers;
 
 namespace SyntaxSearchUnitTests.Matcher

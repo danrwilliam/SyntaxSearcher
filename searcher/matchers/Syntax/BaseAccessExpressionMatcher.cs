@@ -1,13 +1,13 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using SyntaxSearch.Framework;
-using SyntaxSearch.Matchers.Explicit;
+using SyntaxSearch.Matchers;
 using System.Collections.Immutable;
 
 namespace SyntaxSearch.Matchers
 {
     [Is]
-    public partial class BaseAccessExpressionMatcher : Matchers.Explicit.ExpressionSyntaxMatcher, INodeMatcher
+    public partial class BaseAccessExpressionMatcher : Matchers.ExpressionSyntaxMatcher, INodeMatcher
     {
         protected override bool IsNodeMatch(SyntaxNode node, CaptureStore store)
         {

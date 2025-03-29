@@ -78,7 +78,7 @@ namespace SyntaxSearchUnitTests.Matcher
         [NUnit::Test]
         public void CaptureMultiple()
         {
-            var matcher = new SyntaxSearch.Matchers.Explicit.LocalDeclarationStatementMatcher();
+            var matcher = new SyntaxSearch.Matchers.LocalDeclarationStatementMatcher();
             var searcher = new Searcher(matcher);
             var results = searcher.Search(_root).ToArray();
 

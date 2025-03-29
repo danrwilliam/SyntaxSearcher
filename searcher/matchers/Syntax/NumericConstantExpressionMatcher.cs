@@ -7,7 +7,7 @@ using System.Collections.Immutable;
 namespace SyntaxSearch.Matchers
 {
     [Is]
-    public partial class NumericConstantExpressionMatcher : SyntaxSearch.Matchers.Explicit.ExpressionSyntaxMatcher, INodeMatcher
+    public partial class NumericConstantExpressionMatcher : SyntaxSearch.Matchers.ExpressionSyntaxMatcher, INodeMatcher
     {
         //private Optional<double> _value;
 

@@ -1,6 +1,6 @@
 ﻿using SyntaxSearch.Framework;
 
-namespace SyntaxSearch.Matchers.Explicit
+namespace SyntaxSearch.Matchers
 {
     public partial class IdentifierNameMatcher
     {

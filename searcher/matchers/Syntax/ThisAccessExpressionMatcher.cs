@@ -6,7 +6,7 @@ using System.Collections.Immutable;
 namespace SyntaxSearch.Matchers
 {
     [Is]
-    public partial class ThisAccessExpressionMatcher : Matchers.Explicit.ExpressionSyntaxMatcher, INodeMatcher
+    public partial class ThisAccessExpressionMatcher : Matchers.ExpressionSyntaxMatcher, INodeMatcher
     {
         protected override bool IsNodeMatch(SyntaxNode node, CaptureStore store)
         {

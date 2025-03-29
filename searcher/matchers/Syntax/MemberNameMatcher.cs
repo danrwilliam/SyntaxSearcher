@@ -14,7 +14,7 @@ namespace SyntaxSearch.Matchers
     public partial class MemberNameMatcher : LogicalMatcher, INodeMatcher
     {
         [With]
-        private LogicalOrNodeMatcher<Matchers.Explicit.IdentifierNameMatcher> _name;
+        private LogicalOrNodeMatcher<Matchers.IdentifierNameMatcher> _name;
 
         public override bool IsMatch(SyntaxNode node, CaptureStore store)
         {

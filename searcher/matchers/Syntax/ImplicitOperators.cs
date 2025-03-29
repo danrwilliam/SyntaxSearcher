@@ -1,10 +1,10 @@
 ﻿using Microsoft.CodeAnalysis;
 using SyntaxSearch.Framework;
-using SyntaxSearch.Matchers.Explicit;
+using SyntaxSearch.Matchers;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace SyntaxSearch.Matchers.Explicit
+namespace SyntaxSearch.Matchers
 {
     public partial class ArgumentMatcher
     {

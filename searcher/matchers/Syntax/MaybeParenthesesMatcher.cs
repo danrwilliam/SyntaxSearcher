@@ -5,10 +5,10 @@ using SyntaxSearch.Framework;
 namespace SyntaxSearch.Matchers
 {
     [Maybe("Parentheses")]
-    public partial class MaybeParenthesesMatcher : Matchers.Explicit.ExpressionSyntaxMatcher, INodeMatcher
+    public partial class MaybeParenthesesMatcher : Matchers.ExpressionSyntaxMatcher, INodeMatcher
     {
         [With]
-        private LogicalOrNodeMatcher<Matchers.Explicit.ExpressionSyntaxMatcher> _expression;
+        private LogicalOrNodeMatcher<Matchers.ExpressionSyntaxMatcher> _expression;
 
         public MaybeParenthesesMatcher Default => new MaybeParenthesesMatcher();
 

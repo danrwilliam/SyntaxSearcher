@@ -543,7 +543,7 @@ namespace SyntaxSearch.Matchers
             BuildAbstractMatcherClasses(context, abstractClasses);
 
             StringBuilder isBuilder = new();
-            isBuilder.AppendLine(@"using SyntaxSearch.Matchers.Explicit;
+            isBuilder.AppendLine(@"using SyntaxSearch.Matchers;
 
 namespace SyntaxSearch.Framework
 {
@@ -647,7 +647,7 @@ using System.Xml;
 using System.Collections.Immutable;
 
 
-namespace SyntaxSearch.Matchers.Explicit
+namespace SyntaxSearch.Matchers
 {{
     public abstract partial class {name} : {baseType}, IExplicitNodeMatcher<{abstractClass.Name}>
     {{
@@ -679,50 +679,9 @@ namespace SyntaxSearch.Matchers.Explicit
             StringBuilder builder = new();
             string className = classType?.Name;
 
-            if (className != null)
+            if (className is null && namedProperties.Any())
             {
-                builder.AppendLine($$"""
-
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Xml;
-using System.Collections.Immutable;
-
-
-""");
-            }
-            else
-            {
-                builder.AppendLine(@$"
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Xml;
-using System.Collections.Immutable;
-
-namespace SyntaxSearch.Matchers
-{{
-    public partial class {kind.Name}Matcher : NodeMatcher
-    {{
-        public {kind.Name}Matcher() : base(SyntaxKind.{kind.Name})
-        {{
-        }}
-    }}
-}}
-");
-                if (namedProperties.Any())
-                {
-                    GenerateExplicitMatcherClass(kind, classType, [], namedProperties, builder, classes, context);
-                }
+                GenerateExplicitMatcherClass(kind, classType, [], namedProperties, builder, classes, context);
             }
 
             return builder.ToString();
@@ -749,7 +708,7 @@ namespace SyntaxSearch.Matchers
                 Trace.WriteLine($"{classType.ToDisplayString()} couldn't base type for matcher (base type = {classType.BaseType.ToDisplayString()})");
             }
 
-            builder.AppendLine("namespace SyntaxSearch.Matchers.Explicit {");
+            builder.AppendLine("namespace SyntaxSearch.Matchers {");
 
             builder.AppendLine($"public partial class {kind.Name}Matcher : {baseType}, IExplicitNodeMatcher<{classType.Name}> {{");
 
@@ -993,48 +952,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Xml;
-using System.Collections.Immutable;
-
-namespace SyntaxSearch.Matchers
-{{
-    public class {kind.Name}Matcher : NodeMatcher
-    {{
-{string.Join(NewLine, fields.Select(i => $"        private {i.TypeName} {i.FieldName};"))}
-
-        public {kind.Name}Matcher({constructorArgs}) : base(SyntaxKind.{kind.Name})
-        {{
-");
-
-            foreach (var i in fields)
-            {
-                builder.AppendLine($"{i.FieldName} = {i.FieldName.TrimStart('_')};");
-            }
-
-            builder.AppendLine($@"
-        }}
-
-        protected override bool IsNodeMatch(SyntaxNode node, CaptureStore store)
-        {{
-            if (!base.IsNodeMatch(node, store))
-                return false;
-
-            var obj = ({className})node;
-");
-
-            foreach (var f in fields)
-            {
-                if (f.TypeName == "string")
-                {
-                    builder.AppendLine(MakeComparision(f));
-                }
-            }
-
-            builder.AppendLine(@"
-            return true;
-        }
-    }
-}
-");
+using System.Collections.Immutable;");
 
             GenerateExplicitMatcherClass(kind, classType, fields, namedProperties, builder, classes, context);
 

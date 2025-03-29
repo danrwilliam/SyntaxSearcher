@@ -64,7 +64,7 @@ namespace SyntaxSearcher.Generators
         {
             if (t.IsAbstract && !t.Name.StartsWith("Base"))
             {
-                return $"SyntaxSearch.Matchers.Explicit.{t.Name}Matcher";
+                return $"SyntaxSearch.Matchers.{t.Name}Matcher";
             }
             else if (t.Name == nameof(SyntaxToken))
             {
