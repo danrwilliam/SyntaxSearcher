@@ -3,6 +3,8 @@ using SyntaxSearch.Matchers;
 
 namespace SyntaxSearch.Framework
 {
+    public sealed class ExtensionAttribute(string name = null) : MethodAttribute(name);
+
     /// <summary>
     /// Creates a helper property in <see cref="Is"/> for this type
     /// </summary>

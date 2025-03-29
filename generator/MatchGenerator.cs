@@ -252,7 +252,18 @@ namespace SyntaxSearch.Framework
                 foreach (var useConstructor in returnType.Constructors.Where(c => c is { IsStatic: false, DeclaredAccessibility: Accessibility.Public or Accessibility.Internal }
                                                                         && c.GetAttributes().Any(attr => attr.AttributeClass is { Name: "UseConstructorAttribute" })))
                 {
-                    var parameters = string.Join(", ", useConstructor.Parameters.Select(p => $"{p.Type.ToDisplayString()} {p.Name}"));
+                    bool isExt = useConstructor.Parameters.Length > 0;
+                    var parameters = string.Join(", ", useConstructor.Parameters.Select((p, idx) =>
+                    {
+                        if (isExt && idx == 0)
+                        {
+                            return $"this {p.Type.ToDisplayString()} {p.Name}";
+                        }
+                        else
+                        {
+                            return $"{p.Type.ToDisplayString()} {p.Name}";
+                        }
+                    }));
                     var argNames = string.Join(", ", useConstructor.Parameters.Select(p => p.Name));
 
                     builder.AppendLine($@"
@@ -306,9 +317,16 @@ namespace SyntaxSearch.Framework
 
                 StringBuilder builder = new();
 
-                IFieldSymbol[] fields = [
-                    ..classType.GetMembers().OfType<IFieldSymbol>()
-                      .Where(f => f is { CanBeReferencedByName: true, IsStatic: false, IsAbstract: false, DeclaredAccessibility: Accessibility.Protected or Accessibility.Private })];
+                PropertyOrField[] fields = [
+                    ..classType.GetMembers()
+                    .Select(PropertyOrField.From)
+                      .Where(f => f is 
+                      { 
+                          CanBeReferencedByName: true, 
+                          IsStatic: false, 
+                          IsAbstract: false,
+                          DeclaredAccessibility: Accessibility.Protected or Accessibility.Private 
+                      } || f?.Attributes.Any(attr => attr.AttributeClass.Name == "WithAttribute") == true)];
 
                 string[] constructorArgs = [.. fields.Select(f => $"{f.Type.ToDisplayString()} {f.Name.Trim('_')}")];
 
@@ -351,14 +369,26 @@ namespace SyntaxSearch.Matchers
     {{");
 
                     List<string> copyFields = [];
-                    List<IFieldSymbol> withFields = [];
+                    List<PropertyOrField> withFields = [];
+
+                    bool needsConstructorWithFields =
+                            !classType.Constructors.Any(c => c.Parameters.Select(t => t.Type).SequenceEqual(fields.Select(f => f.Type), SymbolEqualityComparer.Default));
+
+                    void buildCtor(string code)
+                    {
+                        if (needsConstructorWithFields)
+                        {
+                            builder.AppendLine(code);
+
+                        }
+                    }
 
                     bool firstField = true;
                     foreach (var field in fields)
                     {
                         if (firstField)
                         {
-                            builder.AppendLine(@$"
+                            buildCtor(@$"
         public {classType.Name}({string.Join(", ", constructorArgs)}){(isOverride ? " : base()" : "")}
         {{");
                         }
@@ -366,26 +396,26 @@ namespace SyntaxSearch.Matchers
 
                         if (SymbolEqualityComparer.Default.Equals(field.Type, stringType))
                         {
-                            builder.AppendLine($"{field.Name} = {field.Name.Trim('_')};");
+                            buildCtor($"{field.Name} = {field.Name.Trim('_')};");
                             copyFields.Add(field.Name);
                         }
                         else if (SymbolEqualityComparer.Default.Equals(field.Type, boolType))
                         {
-                            builder.AppendLine($"{field.Name} = {field.Name.Trim('_')};");
+                            buildCtor($"{field.Name} = {field.Name.Trim('_')};");
                             copyFields.Add(field.Name);
                         }
                         else if (field.Type.TypeKind == TypeKind.Enum)
                         {
-                            builder.AppendLine($"{field.Name} = {field.Name.Trim('_')};");
+                            buildCtor($"{field.Name} = {field.Name.Trim('_')};");
                             copyFields.Add(field.Name);
                         }
-                        else if (field.Type.Name is "LogicalOrNodeMatcher" or "INodeMatcher")
+                        else if (field.Type.Name is "LogicalOrNodeMatcher" or "INodeMatcher" or "ISyntaxNodeMatcher")
                         {
-                            builder.AppendLine($"{field.Name} = {field.Name.Trim('_')};");
+                            buildCtor($"{field.Name} = {field.Name.Trim('_')};");
                             copyFields.Add(field.Name);
                         }
 
-                        if (field.GetAttributes().Any(attr => attr.AttributeClass.Name == "WithAttribute"))
+                        if (field.Attributes.Any(attr => attr.AttributeClass.Name == "WithAttribute"))
                         {
                             withFields.Add(field);
                         }
@@ -394,7 +424,7 @@ namespace SyntaxSearch.Matchers
                     if (!firstField)
                     {
                         // close constructor
-                        builder.AppendLine("}");
+                        buildCtor("}");
                     }
 
                     // copy constructor
@@ -408,17 +438,31 @@ namespace SyntaxSearch.Matchers
 
                     builder.AppendLine("}");
 
-                    if (!classType.Constructors.Any(c => c is
+                    if (classType.BaseType.Constructors.FirstOrDefault(c => c is
+                        {
+                            IsStatic: false,
+                            Parameters.IsEmpty: false
+                        }) is { } baseCtor
+                        && !baseCtor.Parameters.Any(p => p.Name == "copy"))
+                    {
+                        string parameters = string.Join(", ", baseCtor.Parameters.Select(p => p.ToDisplayString()));
+                        string paramNames = string.Join(", ", baseCtor.Parameters.Select(p => p.Name));
+
+                        builder.AppendLine($"public {classType.Name}({parameters}): base({paramNames}) {{ }}");
+
+                    }
+                    else if (!classType.Constructors.Any(c => c is
                         {
                             DeclaredAccessibility: Accessibility.Public,
-                            CanBeReferencedByName: true,
-                            Parameters.IsEmpty: true
+                            IsStatic: false,
+                            Parameters.IsEmpty: true,
+                            CanBeReferencedByName: true
                         }))
                     {
                         builder.AppendLine($"public {classType.Name}() {{ }}");
                     }
 
-                    foreach (var field in withFields.Where(f => !f.IsReadOnly))
+                    foreach (var field in withFields)//.Where(f => !f.IsReadOnly))
                     {
                         string trimmedName = field.Name.Trim('_');
                         string methodName = $"{char.ToUpper(trimmedName[0])}{trimmedName.Substring(1)}";
@@ -607,10 +651,6 @@ namespace SyntaxSearch.Matchers.Explicit
 {{
     public abstract partial class {name} : {baseType}, IExplicitNodeMatcher<{abstractClass.Name}>
     {{
-        protected {name}(string captureName, string matchName) : base(captureName, matchName)
-        {{
-        }}
-
         protected {name}({name} copy) : base(copy)
         {{
         }}
@@ -659,14 +699,11 @@ namespace SyntaxSearch.Matchers
     public class {{kind.Name}}Matcher : NodeMatcher
     {
 
-        public {{kind.Name}}Matcher(string captureName = null, string matchCapture = null) : base(
-            SyntaxKind.{{kind.Name}},
-            captureName,
-            matchCapture)
+        public {{kind.Name}}Matcher() : base(SyntaxKind.{{kind.Name}})
         {
         }
 
-        public {{kind.Name}}Matcher({{className}} node) : base(SyntaxKind.{{kind.Name}}, null, null)
+        public {{kind.Name}}Matcher({{className}} node) : base(SyntaxKind.{{kind.Name}})
         {
             if (!node.IsKind(SyntaxKind.{{kind.Name}}))
             {
@@ -700,11 +737,7 @@ namespace SyntaxSearch.Matchers
 {{
     public partial class {kind.Name}Matcher : NodeMatcher
     {{
-
-        public {kind.Name}Matcher(string captureName = null, string matchCapture = null) : base(
-            SyntaxKind.{kind.Name},
-            captureName,
-            matchCapture)
+        public {kind.Name}Matcher() : base(SyntaxKind.{kind.Name})
         {{
         }}
     }}
@@ -852,15 +885,10 @@ namespace SyntaxSearch.Matchers
                 }
             }
 
-            string constructorArgs = string.Join(
-    ", ",
-    [.. fields.Select(i => $"{i.TypeName} {i.FieldName.TrimStart('_')} = default"), "string captureName = null, string matchCapture = null"]);
+            string constructorArgs = string.Join(", ", [.. fields.Select(i => $"{i.TypeName} {i.FieldName.TrimStart('_')} = default")]);
 
             builder.AppendLine($@"
-        public {kind.Name}Matcher(
-            {constructorArgs}) : base(
-            captureName,
-            matchCapture)
+        public {kind.Name}Matcher({constructorArgs}) : base()
         {{");
 
             foreach (var i in fields)
@@ -978,9 +1006,7 @@ namespace SyntaxSearch.Matchers
         {
             string className = classType.Name;
 
-            string constructorArgs = string.Join(
-                ", ",
-                [.. fields.Select(i => $"{i.TypeName} {i.FieldName.TrimStart('_')} = default"), "string captureName = null, string matchCapture = null"]);
+            string constructorArgs = string.Join(", ", [.. fields.Select(i => $"{i.TypeName} {i.FieldName.TrimStart('_')} = default")]);
 
             StringBuilder builder = new(@$"
 using Microsoft.CodeAnalysis;
@@ -999,10 +1025,7 @@ namespace SyntaxSearch.Matchers
     {{
 {string.Join(NewLine, fields.Select(i => $"        private {i.TypeName} {i.FieldName};"))}
 
-        public {kind.Name}Matcher({constructorArgs}) : base(
-            SyntaxKind.{kind.Name},
-            captureName,
-            matchCapture)
+        public {kind.Name}Matcher({constructorArgs}) : base(SyntaxKind.{kind.Name})
         {{
 ");
 
@@ -1053,6 +1076,50 @@ namespace SyntaxSearch.Matchers
         {
             _receiver = new SyntaxCollector<ClassDeclarationSyntax>();
             context.RegisterForSyntaxNotifications(() => _receiver);
+        }
+
+        record PropertyOrField(ITypeSymbol Type,
+                               string Name,
+                               Accessibility DeclaredAccessibility,
+                               bool IsAbstract,
+                               bool IsStatic,
+                               ImmutableArray<AttributeData> Attributes,
+                               bool CanBeReferencedByName,
+                               bool IsReadOnly
+                               )
+        {
+            public PropertyOrField(IPropertySymbol p) : this(p.Type,
+                                                             p.Name,
+                                                             p.DeclaredAccessibility,
+                                                             p.IsAbstract,
+                                                             p.IsStatic,
+                                                             p.GetAttributes(),
+                                                             p.CanBeReferencedByName,
+                                                             p.SetMethod is null)
+            {
+
+            }
+
+            public PropertyOrField(IFieldSymbol f) : this(f.Type,
+                                                          f.Name,
+                                                          f.DeclaredAccessibility,
+                                                          f.IsAbstract,
+                                                          f.IsStatic,
+                                                          f.GetAttributes(),
+                                                          f.CanBeReferencedByName,
+                                                          f.IsReadOnly)
+            {
+            }
+
+            public static PropertyOrField From(ISymbol s)
+            {
+                return s switch
+                {
+                    IPropertySymbol p => new(p),
+                    IFieldSymbol f => new(f),
+                    _ => default
+                };
+            }
         }
     }
 }

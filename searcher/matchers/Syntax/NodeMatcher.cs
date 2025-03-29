@@ -11,16 +11,12 @@ namespace SyntaxSearch.Matchers
     public abstract class NodeMatcher : BaseMatcher, ITreeWalkNodeMatcher, IEnumerable<INodeMatcher>
     {
         protected SyntaxKind _thisKind;
-        protected string _captureName;
-        protected string _matchName;
 
         public ImmutableArray<INodeMatcher> Children { get; private set; } = [];
 
-        protected NodeMatcher(SyntaxKind kind, string captureName, string matchName)
+        protected NodeMatcher(SyntaxKind kind)
         {
             _thisKind = kind;
-            _captureName = captureName;
-            _matchName = matchName;
         }
 
         public void Add(INodeMatcher matcher)
@@ -45,16 +41,7 @@ namespace SyntaxSearch.Matchers
 
         public override bool IsMatch(SyntaxNode node, CaptureStore store)
         {
-            if (!IsNodeMatch(node, store))
-                return false;
-
-            if (!string.IsNullOrEmpty(_matchName)
-                && store.CapturedGroups.TryGetValue(_matchName, out var compareToNode))
-            {
-                return CompareToCapturedNode(node, compareToNode);
-            }
-
-            return DoChildrenMatch(node, store);
+            return IsNodeMatch(node, store) && DoChildrenMatch(node, store);
         }
 
         protected virtual bool CompareToCapturedNode(SyntaxNode node, SyntaxNode compareToNode)
@@ -109,11 +96,6 @@ namespace SyntaxSearch.Matchers
             {
                 if (!post.IsMatch(node, store))
                     return false;
-            }
-
-            if (!string.IsNullOrWhiteSpace(_captureName))
-            {
-                store.CapturedGroups.Add(_captureName, node);
             }
 
             return true;

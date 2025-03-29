@@ -45,18 +45,6 @@ namespace SyntaxSearch
         }
 
         /// <summary>
-        /// If the matcher is successful, stores the related node in the
-        /// capture store with the given name
-        /// </summary>
-        /// <param name="matcher"></param>
-        /// <param name="name"></param>
-        /// <returns></returns>
-        public static CaptureMatcher Capture(this INodeMatcher matcher, string name)
-        {
-            return CaptureMatcher.Default.WithMatcher(matcher).WithName(name);
-        }
-
-        /// <summary>
         /// Uses the given matcher to find all matches, then calls
         /// <paramref name="computeReplacement"/> delegate to retrieve
         /// the modified node.

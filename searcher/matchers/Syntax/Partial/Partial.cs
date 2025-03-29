@@ -7,7 +7,7 @@ namespace SyntaxSearch.Matchers.Explicit
 {
     public partial class ArgumentMatcher
     {
-        public static implicit operator ArgumentMatcher(ExpressionSyntaxMatcher expression) => new ArgumentMatcher().WithExpression(expression);
+        public static implicit operator ArgumentMatcher(ExpressionSyntaxMatcher expression) => Is.Argument.WithExpression(expression);
     }
 
     public partial class ArgumentListMatcher
@@ -29,5 +29,10 @@ namespace SyntaxSearch.Matchers.Explicit
     public partial class SimpleNameSyntaxMatcher
     {
         public static implicit operator SimpleNameSyntaxMatcher(string name) => new IdentifierNameMatcher().WithText(name);
+    }
+
+    public partial class ExpressionStatementMatcher
+    {
+        public static implicit operator ExpressionStatementMatcher(ExpressionSyntaxMatcher expressionSyntax) => Is.ExpressionStatement.WithExpression(expressionSyntax);
     }
 }

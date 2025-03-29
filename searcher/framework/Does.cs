@@ -7,9 +7,4 @@ namespace SyntaxSearch.Framework
     /// </summary>
     /// <param name="name"></param>
     public sealed class DoesAttribute(string name = null) : MethodAttribute(name);
-
-    public static partial class Does
-    {
-        public static MatchCapture Match(string name) => new MatchCapture(name);
-    }
 }

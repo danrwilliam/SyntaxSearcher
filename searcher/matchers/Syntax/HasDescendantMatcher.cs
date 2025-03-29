@@ -3,22 +3,43 @@ using SyntaxSearch.Framework;
 
 namespace SyntaxSearch.Matchers
 {
-    [Has("Descendant")]
-    public partial class HasDescendantMatcher : LogicalMatcher
+    public abstract class CompoundMatcher : LogicalMatcher
     {
-        private readonly INodeMatcher _matcher;
+        public ISyntaxNodeMatcher NodeMatcher { get; }
 
-        [UseConstructor]
-        public HasDescendantMatcher(INodeMatcher matcher)
+        protected CompoundMatcher(ISyntaxNodeMatcher nodeMatcher)
         {
-            _matcher = matcher;
+            NodeMatcher = nodeMatcher;
         }
 
-        public override bool IsMatch(SyntaxNode node, CaptureStore store)
+        protected CompoundMatcher(CompoundMatcher copy) : this(copy.NodeMatcher)
+        {
+        }
+
+        public sealed override bool IsMatch(SyntaxNode node, CaptureStore store)
+        {
+            return NodeMatcher.IsMatch(node, store) && IsCompoundMatch(node, store);
+        }
+
+        protected abstract bool IsCompoundMatch(SyntaxNode node, CaptureStore store);
+    }
+
+    [Extension]
+    public partial class HasDescendantMatcher : CompoundMatcher
+    {
+        public INodeMatcher DescendantMatcher { get; }
+
+        [UseConstructor]
+        public HasDescendantMatcher(ISyntaxNodeMatcher matcher, INodeMatcher descendant) : base(matcher)
+        {
+            DescendantMatcher = descendant;
+        }
+
+        protected override bool IsCompoundMatch(SyntaxNode node, CaptureStore store)
         {
             foreach (var descendant in node.DescendantNodes(f => true))
             {
-                if (_matcher.IsMatch(descendant, store))
+                if (DescendantMatcher.IsMatch(descendant, store))
                 {
                     return true;
                 }
@@ -27,22 +48,24 @@ namespace SyntaxSearch.Matchers
         }
     }
 
-    [Has("Ancestor")]
-    public partial class HasAncestorMatcher : LogicalMatcher
+    [Extension]
+    public partial class HasAncestorMatcher : CompoundMatcher
     {
-        public INodeMatcher Matcher { get; }
+        public INodeMatcher AncestorMatcher { get; }
 
         [UseConstructor]
-        public HasAncestorMatcher(INodeMatcher matcher)
+        public HasAncestorMatcher(
+            ISyntaxNodeMatcher matcher, 
+            INodeMatcher descendant) : base(matcher)
         {
-            Matcher = matcher;
+            AncestorMatcher = descendant;
         }
 
-        public override bool IsMatch(SyntaxNode node, CaptureStore store)
+        protected override bool IsCompoundMatch(SyntaxNode node, CaptureStore store)
         {
-            foreach (var ancestor in  node.Ancestors())
+            foreach (var ancestor in node.Ancestors())
             {
-                if (Matcher.IsMatch(ancestor, store))
+                if (AncestorMatcher.IsMatch(ancestor, store))
                 {
                     return true;
                 }
