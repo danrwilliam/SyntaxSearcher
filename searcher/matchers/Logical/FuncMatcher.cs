@@ -4,7 +4,7 @@ using System;
 
 namespace SyntaxSearch.Matchers
 {
-    [Is("Match")]
+    [Does("Match")]
     public partial class SyntaxNodeFuncMatcher : LogicalMatcher, ISyntaxNodeMatcher
     {
         public INodeMatcher Matcher { get; }
@@ -35,7 +35,7 @@ namespace SyntaxSearch.Matchers
         }
     }
 
-    [Is("Match")]
+    [Does("Match")]
     public partial class ExplicitNodeFuncMatcher<T> : LogicalMatcher//, IExplicitNodeMatcher<T>
         where T : SyntaxNode
     {

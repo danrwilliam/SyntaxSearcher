@@ -38,7 +38,7 @@ namespace SyntaxSearchUnitTests.Matcher
         public void TestNode(string code, int result)
         {
             var node = SyntaxFactory.ParseExpression(code);
-            var matcher = Is.Match(f => f is IdentifierNameSyntax { Identifier.Text: "a" or "c" });
+            var matcher = Does.Match(f => f is IdentifierNameSyntax { Identifier.Text: "a" or "c" });
 
             var results = matcher.Search(node);
 
@@ -50,7 +50,7 @@ namespace SyntaxSearchUnitTests.Matcher
         public void TestGenericNode(string code, int result)
         {
             var node = SyntaxFactory.ParseExpression(code);
-            var matcher = Is.Match<IdentifierNameSyntax>(f => f is { Identifier.Text: "a" or "c" });
+            var matcher = Does.Match<IdentifierNameSyntax>(f => f is { Identifier.Text: "a" or "c" });
 
             var results = matcher.Search(node);
 
@@ -62,7 +62,7 @@ namespace SyntaxSearchUnitTests.Matcher
         public void TestGenericNoFunc(string code, int result)
         {
             var node = SyntaxFactory.ParseExpression(code);
-            var matcher = Is.Match<IdentifierNameSyntax>();
+            var matcher = Does.Match<IdentifierNameSyntax>();
 
             var results = matcher.Search(node);
 
@@ -74,7 +74,7 @@ namespace SyntaxSearchUnitTests.Matcher
         public void TestGenericCombine(string code, int result)
         {
             var node = SyntaxFactory.ParseExpression(code);
-            var matcher = Is.Match<IdentifierNameSyntax>().Then(f => f.Identifier.Text is "a" or "c");
+            var matcher = Does.Match<IdentifierNameSyntax>().Then(f => f.Identifier.Text is "a" or "c");
 
             var results = matcher.Search(node);
 
