@@ -17,27 +17,6 @@ Is.IfStatement
                     .WithExpression(Does.Match("objectInvoked"))))
 ```
 
-Or with XML
-
-```xml
-<SyntaxSearchDefinition>
-  <IfStatement>
-    <NotEqualsExpression>
-      <Anything Name="objectInvoked" />
-      <NullLiteralExpression />
-    </NotEqualsExpression>
-    <Block>
-      <ExpressionStatement>
-        <InvocationExpression>
-          <MatchCapture Name="objectInvoked" />
-          <ArgumentList />
-        </InvocationExpression>
-      </ExpressionStatement>
-    </Block>
-  </IfStatement>
-</SyntaxSearchDefinition>
-```
-
 This example search definition would match any of the following
 
 ```csharp
