@@ -249,6 +249,21 @@ namespace SyntaxSearch.Framework
                                                                         && c.GetAttributes().Any(attr => attr.AttributeClass is { Name: "UseConstructorAttribute" })))
                 {
                     bool isExt = useConstructor.Parameters.Length > 0;
+
+                    string typeArgs;
+                    string constraints;
+                    if (returnType.TypeParameters.Length > 0)
+                    {
+                        typeArgs = $"<{string.Join(", ", returnType.TypeParameters.Select(t => t.Name))}>";
+                        constraints =
+                            string.Join("\n", returnType.TypeParameters.Select(t => $"where {t.Name} : {string.Join(", ", t.ConstraintTypes.Select(t => t.ToDisplayString()))}"));
+                    }
+                    else
+                    {
+                        typeArgs = "";
+                        constraints = "";
+                    }
+
                     var parameters = string.Join(", ", useConstructor.Parameters.Select((p, idx) =>
                     {
                         if (isExt && idx == 0)
@@ -263,7 +278,7 @@ namespace SyntaxSearch.Framework
                     var argNames = string.Join(", ", useConstructor.Parameters.Select(p => p.Name));
 
                     builder.AppendLine($@"
-                        public static {returnType.ToDisplayString()} {methodName}({parameters}) => new {returnType.ToDisplayString()}({argNames});
+                        public static {returnType.ToDisplayString()} {methodName}{typeArgs}({parameters}) {constraints} => new {returnType.ToDisplayString()}({argNames});
 ");
 
                     methods = true;
@@ -362,6 +377,12 @@ namespace SyntaxSearch.Framework
 
                 if (generate)
                 {
+                    string typeParameters = classType.TypeParameters.Length > 0
+                        ? $"<{string.Join(", ", classType.TypeParameters.Select(t => t.Name))}>"
+                        : "";
+
+                    string defTypeName = $"{classType.Name}{typeParameters}";
+
                     builder.AppendLine(@$"
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -374,7 +395,7 @@ using System.Collections.Immutable;
 
 namespace SyntaxSearch.Matchers
 {{
-    public partial class {classType.Name}
+    public partial class {defTypeName}
     {{");
 
                     List<string> copyFields = [];
@@ -440,7 +461,7 @@ namespace SyntaxSearch.Matchers
 
                     // copy constructor
                     builder.AppendLine($@"
-                            public {classType.Name}({classType.Name} copy) : base(copy)
+                            public {classType.Name}({defTypeName} copy) : base(copy)
                             {{");
                     foreach (var c in copyFields)
                     {
@@ -467,7 +488,7 @@ namespace SyntaxSearch.Matchers
                             DeclaredAccessibility: Accessibility.Public,
                             IsStatic: false,
                             Parameters.IsEmpty: true,
-                            CanBeReferencedByName: true
+                            IsImplicitlyDeclared: false
                         }))
                     {
                         builder.AppendLine($"public {classType.Name}() {{ }}");
@@ -483,16 +504,16 @@ namespace SyntaxSearch.Matchers
                             var nodeMatcher = ((INamedTypeSymbol)field.Type).TypeArguments[0];
 
                             builder.AppendLine($@"
-                            public {classType.Name} With{methodName}({nodeMatcher.ToDisplayString()} matcher)
+                            public {defTypeName} With{methodName}({nodeMatcher.ToDisplayString()} matcher)
                             {{
-                                var copy = new {classType.Name}(this);
+                                var copy = new {defTypeName}(this);
                                 copy.{field.Name} = matcher;
                                 return copy;
                             }}
 
-                            public {classType.Name} With{methodName}(ILogicalMatcher matcher)
+                            public {defTypeName} With{methodName}(ILogicalMatcher matcher)
                             {{
-                                var copy = new {classType.Name}(this);
+                                var copy = new {defTypeName}(this);
                                 copy.{field.Name} = matcher.For<{nodeMatcher.ToDisplayString()}>();
                                 return copy;
                             }}
@@ -501,9 +522,9 @@ namespace SyntaxSearch.Matchers
                         else
                         {
                             builder.AppendLine($@"
-                            public {classType.Name} With{methodName}({field.Type.ToDisplayString()} matcher)
+                            public {defTypeName} With{methodName}({field.Type.ToDisplayString()} matcher)
                             {{
-                                var copy = new {classType.Name}(this);
+                                var copy = new {defTypeName}(this);
                                 copy.{field.Name} = matcher;
                                 return copy;
                             }}
