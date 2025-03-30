@@ -126,12 +126,13 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="build\BuildTests.cs" />
     <Compile Include="matcher\BinaryMatcherTests.cs" />
     <Compile Include="matcher\CaptureTests.cs" />
+    <Compile Include="matcher\CommonMatcherTests.cs" />
     <Compile Include="matcher\ConstraintTests.cs" />
     <Compile Include="matcher\DescendantTest.cs" />
     <Compile Include="matcher\ImplicitOperatorTests.cs" />
+    <Compile Include="matcher\IsKindTests.cs" />
     <Compile Include="matcher\MatcherTests.cs" />
     <Compile Include="matcher\MaybeParensTests.cs" />
     <Compile Include="matcher\NameMatcherTests.cs" />

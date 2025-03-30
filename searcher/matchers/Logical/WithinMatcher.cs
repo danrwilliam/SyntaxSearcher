@@ -7,7 +7,6 @@ namespace SyntaxSearch.Matchers
     //[Is]
     public partial class WithinMatcher : BaseMatcher
     {
-        public override NodeAccept Accepts { get => NodeAccept.Node; set { } }
         private SyntaxKind _scopeKind;
 
         public override bool IsMatch(SyntaxNode node, CaptureStore store)

@@ -7,6 +7,14 @@ namespace SyntaxSearcher.Generators
 {
     internal static class Helpers
     {
+        public static MatchProperty[] GetNamedProperties(IFieldSymbol kind, ITypeSymbol parameterType, Compilation compilation)
+        {
+            var syntaxNodeType = compilation.GetTypeByMetadataName(typeof(SyntaxNode).FullName);
+            var syntaxTokenType = compilation.GetTypeByMetadataName(typeof(SyntaxToken).FullName);
+            return GetNamedProperties(kind, parameterType, syntaxNodeType, syntaxTokenType);
+
+        }
+
         /// <summary>
         /// Returns all public members that derive from <see cref="SyntaxNode"/> or is a
         /// list of <see cref="SyntaxNode"/>.
@@ -49,7 +57,7 @@ namespace SyntaxSearcher.Generators
                 return new { prop = f, isList = PropertyKind.Normal, include = false };
             })
             .Where(f => f.include && f.prop.Name != "Parent")
-            .Select(f => new MatchProperty(f.prop, f.isList))];
+            .Select(f => new MatchProperty(new(f.prop), f.isList))];
         }
 
         /// <summary>

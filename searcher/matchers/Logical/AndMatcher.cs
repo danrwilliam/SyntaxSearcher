@@ -6,8 +6,6 @@ namespace SyntaxSearch.Matchers
     [Is]
     public class AndMatcher(params INodeMatcher[] matchers) : MultipleOperandLogicalMatcher(matchers)
     {
-        public override NodeAccept Accepts { get => NodeAccept.Node; set { } }
-
         public override bool IsMatch(SyntaxNode node, CaptureStore store)
         {
             foreach (var child in Matchers)

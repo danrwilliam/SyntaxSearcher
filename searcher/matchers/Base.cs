@@ -19,12 +19,6 @@ namespace SyntaxSearch.Matchers
         /// <param name="node">node to examine</param>
         /// <returns>node matches criteria</returns>
         bool IsMatch(SyntaxNode node, CaptureStore store);
-
-        /// <summary>
-        /// Specifies what node should be passed
-        /// to <see cref="IsMatch(SyntaxNode)"/>
-        /// </summary>
-        NodeAccept Accepts { get; set; }
     }
 
     public interface ITokenMatcher
@@ -45,23 +39,6 @@ namespace SyntaxSearch.Matchers
     public interface ISyntaxListMatcher
     {
         bool IsMatch<T>(IReadOnlyList<T> list, CaptureStore store) where T : SyntaxNode;
-    }
-
-    public interface ITreeWalkNodeMatcher : INodeMatcher
-    {
-        /// <summary>
-        /// List of matchers for child nodes
-        /// </summary>
-        ImmutableArray<INodeMatcher> Children { get; }
-
-        internal void AddChild(INodeMatcher matcher);
-    }
-
-    public enum NodeAccept
-    {
-        Node,
-        Child,
-        PostNode
     }
 
     public class CaptureStore
@@ -88,8 +65,6 @@ namespace SyntaxSearch.Matchers
 
     public abstract class BaseMatcher : INodeMatcher
     {
-        public virtual NodeAccept Accepts { get; set; } = NodeAccept.Node;
-
         public abstract bool IsMatch(SyntaxNode node, CaptureStore store);
 
         protected BaseMatcher(BaseMatcher copy)

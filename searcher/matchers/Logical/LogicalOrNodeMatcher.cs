@@ -19,8 +19,6 @@ namespace SyntaxSearch.Matchers
             _node = node;
         }
 
-        public NodeAccept Accepts { get; set; }
-
         public bool IsMatch(SyntaxNode node, CaptureStore store)
         {
             INodeMatcher matcher = _logical ?? (INodeMatcher)_node;

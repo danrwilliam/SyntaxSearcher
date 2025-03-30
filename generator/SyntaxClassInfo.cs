@@ -7,7 +7,8 @@ namespace SyntaxSearcher.Generators
     {
         Normal = 0,
         GenericTokenList = 1,
-        TokenList = 2
+        TokenList = 2,
+        SyntaxKind = 3
     }
 
     internal class SyntaxClassInfo
