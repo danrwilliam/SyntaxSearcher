@@ -80,5 +80,18 @@ namespace SyntaxSearchUnitTests.Matcher
 
             NUnit::Assert.That(results, NUnit::Has.Exactly(result).Items);
         }
+
+        [NUnit::TestCase("a[10] + b[-2]", true)]
+        [NUnit::TestCase("a[10] + b.v", false)]
+        public void TestGenericAsExplicitArgument(string code, bool result)
+        {
+            var matcher = Is.AddExpression
+                .WithLeft(Does.Match<ElementAccessExpressionSyntax>())
+                .WithRight(Does.Match<ElementAccessExpressionSyntax>());
+
+            var node = SyntaxFactory.ParseExpression(code);
+
+            NUnit::Assert.That(matcher.IsMatch(node), NUnit::Is.EqualTo(result));
+        }
     }
 }

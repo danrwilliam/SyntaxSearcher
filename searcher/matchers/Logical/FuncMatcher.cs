@@ -36,7 +36,7 @@ namespace SyntaxSearch.Matchers
     }
 
     [Does("Match")]
-    public partial class ExplicitNodeFuncMatcher<T> : LogicalMatcher//, IExplicitNodeMatcher<T>
+    public partial class ExplicitNodeFuncMatcher<T> : LogicalMatcher, IExplicitNodeMatcher<T>
         where T : SyntaxNode
     {
         public INodeMatcher Matcher { get; }

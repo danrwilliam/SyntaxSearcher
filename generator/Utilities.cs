@@ -50,6 +50,18 @@ namespace SyntaxSearcher.Generators
             return typeSymbol.BaseType.IsSubclassOf(candidateBase);
         }
 
+        public static IEnumerable<ITypeSymbol> SelfAndBaseTypes(this ITypeSymbol t)
+        {
+            if (t is not null)
+            {
+                yield return t;
+                foreach (var baseType in t.BaseTypes())
+                {
+                    yield return baseType;
+                }
+            }
+        }
+
         public static IEnumerable<ITypeSymbol> BaseTypes(this ITypeSymbol t)
         {
             t = t?.BaseType;

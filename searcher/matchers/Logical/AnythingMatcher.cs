@@ -7,7 +7,7 @@ namespace SyntaxSearch.Matchers
     /// Accepts anything as a match
     /// </summary>
     [Is]
-    public partial class AnythingMatcher : LogicalMatcher
+    public partial class AnythingMatcher : LogicalMatcher, IExplicitNodeMatcher<SyntaxNode>
     {
         public override bool IsMatch(SyntaxNode node, CaptureStore store)
         {

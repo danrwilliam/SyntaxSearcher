@@ -176,6 +176,16 @@ namespace SyntaxSearch.Framework
                 kindToClass[kind] = associatedType;
             }
 
+            HashSet<INamedTypeSymbol> allBaseTypes = new(
+                kindToClass
+                    .Values
+                    .SelectMany(b => b.BaseTypes())
+                    .Where(b => b.SpecialType == SpecialType.None)
+                    .Distinct<ITypeSymbol>(SymbolEqualityComparer.Default)
+                    .OfType<INamedTypeSymbol>(), // && !t.Name.StartsWith("Base")),
+                SymbolEqualityComparer.Default);
+
+
             HashSet<INamedTypeSymbol> abstractTypes = new(
                 kindToClass
                     .Values
@@ -184,6 +194,11 @@ namespace SyntaxSearch.Framework
                     .OfType<INamedTypeSymbol>()
                     .Where(t => t.IsAbstract), // && !t.Name.StartsWith("Base")),
                 SymbolEqualityComparer.Default);
+            abstractTypes.UnionWith(
+                kindToClass.Values.Select(b => b).OfType<INamedTypeSymbol>()
+                .GroupBy(b => b, SymbolEqualityComparer.Default)
+                .Where(b => b.Count() > 1 && b.Key is { IsSealed: true, IsAbstract: false })
+                .Select(k => (INamedTypeSymbol)k.Key));
 
             return (kindToClass, abstractTypes);
         }
@@ -319,10 +334,14 @@ namespace SyntaxSearch.Framework
                 {
                     continue;
                 }
-                if (classType.AllInterfaces.Any(intf => intf is { Name: "IExplicitNodeMatcher", Arity: 1 }))
+                if (classType.GetAttributes().Any(attr => attr.AttributeClass.Name == nameof(System.CodeDom.Compiler.GeneratedCodeAttribute)))
                 {
                     continue;
                 }
+                //if (classType.AllInterfaces.Any(intf => intf is { Name: "IExplicitNodeMatcher", Arity: 1 }))
+                //{
+                //    continue;
+                //}
 
                 bool isOverride = isOverrideWithProperties(classType, stringType);
 
@@ -665,6 +684,18 @@ namespace SyntaxSearch.Framework
             return newTrees;
         }
 
+        static string ReplaceSyntaxEnd(string s)
+        {
+            if (s.EndsWith("Syntax"))
+            {
+                return s.Substring(0, s.Length - "Syntax".Length);
+            }
+            else
+            {
+                return s;
+            }
+        }
+
         private void BuildAbstractMatcherClasses(GeneratorExecutionContext context, HashSet<INamedTypeSymbol> abstractClasses)
         {
             var explicitMatcher = context.Compilation.GetTypeByMetadataName("SyntaxSearch.Matchers.ExplicitNodeMatcher");
@@ -745,7 +776,7 @@ namespace SyntaxSearch.Matchers
                     using System.Collections.Immutable;
                     """);
 
-                string className = $"{commonBase.Name.Replace("Syntax", "")}Matcher";
+                string className = $"{commonBase.Name}Matcher";
 
                 MatchProperty[] namedProps =
                 [
@@ -761,10 +792,11 @@ namespace SyntaxSearch.Matchers
                                      b,
                                      classes,
                                      context,
-                                     "SyntaxSearch.Matchers.Common");
+                                     "SyntaxSearch.Matchers.Common",
+                                     $"SyntaxSearch.Matchers.{className}");
 
                 isExtensions.AppendLine($@"
-                    public static {className} {commonBase.Name.Replace("Syntax", "")} => new {className}();
+                    public static {className} {ReplaceSyntaxEnd(commonBase.Name)} => new {className}();
 ");
 
                 context.AddSource($"{className}.Common.g.cs", Utilities.Normalize(b));
@@ -790,15 +822,25 @@ namespace SyntaxSearch.Matchers
             StringBuilder builder,
             IReadOnlyDictionary<IFieldSymbol, INamedTypeSymbol> classes,
             GeneratorExecutionContext context,
-            string namespaceName = "SyntaxSearch.Matchers")
+            string namespaceName = "SyntaxSearch.Matchers",
+            string baseClassName = null)
         {
             string syntaxType = classType.Name;
 
-            string baseType = classType.BaseType switch
+            string baseType;
+
+            if (baseClassName is not null)
             {
-                { IsAbstract: true } bt => $"{bt.Name}Matcher",
-                _ => "ExplicitNodeMatcher"
-            };
+                baseType = baseClassName;
+            }
+            else
+            {
+                baseType = classType.BaseType switch
+                {
+                    { IsAbstract: true } bt => $"{bt.Name}Matcher",
+                    _ => "ExplicitNodeMatcher"
+                };
+            }
 
             if (baseType == "ExplicitNodeMatcher")
             {
@@ -807,6 +849,7 @@ namespace SyntaxSearch.Matchers
 
             builder.AppendLine($"namespace {namespaceName} {{");
 
+            builder.AppendLine(@"[System.CodeDom.Compiler.GeneratedCodeAttribute(""SyntaxSearch.Generator"", ""1.0.0"")]");
             builder.AppendLine($"public partial class {matcherClassName} : {baseType}, IExplicitNodeMatcher<{syntaxType}> {{");
 
             foreach (var i in fields)
