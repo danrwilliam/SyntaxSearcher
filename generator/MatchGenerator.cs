@@ -960,7 +960,7 @@ namespace SyntaxSearch.Matchers
 
             builder.AppendLine("}");
 
-            if (matcherClassName == nameof(SyntaxKind.NumericLiteralExpression))
+            if (kindName == nameof(SyntaxKind.NumericLiteralExpression))
             {
                 foreach (var numeric in NumericTypes)
                 {
