@@ -5,6 +5,23 @@ using System.Collections.Immutable;
 
 namespace SyntaxSearch.Matchers
 {
+    public class CombinedSyntaxTokenListMatcher : ISyntaxTokenListMatcher
+    {
+        private readonly ISyntaxTokenListMatcher _left;
+        private readonly ISyntaxTokenListMatcher _right;
+
+        public CombinedSyntaxTokenListMatcher(ISyntaxTokenListMatcher left, ISyntaxTokenListMatcher right)
+        {
+            _left = left;
+            _right = right;
+        }
+
+        public bool IsMatch(SyntaxTokenList list, CaptureStore store)
+        {
+            return _left.IsMatch(list, store) && _right.IsMatch(list, store);
+        }
+    }
+
     public class HasSyntaxTokenListMatcher : ISyntaxTokenListMatcher
     {
         private ImmutableHashSet<SyntaxKind> _hasKinds = [];

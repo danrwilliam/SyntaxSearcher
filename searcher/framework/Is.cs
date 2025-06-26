@@ -25,5 +25,7 @@ namespace SyntaxSearch.Framework
         public static ISyntaxTokenListMatcher Abstract => HasSyntaxTokenListMatcher.Default.Has(SyntaxKind.AbstractKeyword);
         public static ISyntaxTokenListMatcher Internal => HasSyntaxTokenListMatcher.Default.Has(SyntaxKind.InternalKeyword);
         public static ISyntaxTokenListMatcher Record => HasSyntaxTokenListMatcher.Default.Has(SyntaxKind.RecordKeyword);
+        public static ISyntaxTokenListMatcher File => HasSyntaxTokenListMatcher.Default.Has(SyntaxKind.FileKeyword);
+        public static ISyntaxTokenListMatcher Ref => HasSyntaxTokenListMatcher.Default.Has(SyntaxKind.RefKeyword);
     }
 }

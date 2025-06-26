@@ -139,6 +139,7 @@
     <Compile Include="matcher\NameMatcherTests.cs" />
     <Compile Include="matcher\NodeTests.cs" />
     <Compile Include="matcher\NumericLiteralMatcherTests.cs" />
+    <Compile Include="matcher\PropertyDeclarationTests.cs" />
     <Compile Include="matcher\RewriterTests.cs" />
     <Compile Include="matcher\SyntaxListTests.cs" />
     <Compile Include="matcher\SyntaxTests.cs" />

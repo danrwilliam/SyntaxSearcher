@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace SyntaxSearcher.Generators
 {
-    public static class Extensions
+    static class Extensions
     {
         public static IEnumerable<ISymbol> GetAllMembers(this ITypeSymbol type)
         {

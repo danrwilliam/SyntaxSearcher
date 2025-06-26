@@ -60,5 +60,17 @@ namespace SyntaxSearch
             var rewriter = new Rewriter(matcher, computeReplacement);
             return rewriter.Rewrite<T>(node);
         }
+
+        public static ISyntaxTokenListMatcher Merge(this ISyntaxTokenListMatcher left, ISyntaxTokenListMatcher right)
+        {
+            if (left is null)
+            {
+                return right;
+            }
+            else
+            {
+                return new CombinedSyntaxTokenListMatcher(left, right);
+            }
+        }
     }
 }

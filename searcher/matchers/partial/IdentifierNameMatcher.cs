@@ -11,4 +11,8 @@ namespace SyntaxSearch.Matchers
 
         public static implicit operator IdentifierNameMatcher(string name) => new IdentifierNameMatcher().WithText(name);
     }
+
+    public partial class PropertyDeclarationMatcher
+    {
+    }
 }

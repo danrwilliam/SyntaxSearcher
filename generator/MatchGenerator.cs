@@ -17,6 +17,8 @@ namespace SyntaxSearcher.Generators
         private static readonly ImmutableArray<string> IgnoreKinds = ImmutableArray.Create("Keyword", "Trivia");
         private SyntaxCollector<ClassDeclarationSyntax> _receiver;
 
+        private static readonly ImmutableDictionary<string, IHelperMethodGenerator> MethodGenerators = HelperCollector.Collect();
+
         /// <summary>
         /// Map of the first in the chain of SyntaxKinds that use the same concrete type.
         /// <para>
@@ -411,6 +413,7 @@ using System.Linq;
 using System.Xml;
 using System.Text;
 using System.Collections.Immutable;
+using SyntaxSearch.Framework;
 
 namespace SyntaxSearch.Matchers
 {{
@@ -721,6 +724,7 @@ using System.Linq;
 using System.Text;
 using System.Xml;
 using System.Collections.Immutable;
+using SyntaxSearch.Framework;
 
 namespace SyntaxSearch.Matchers
 {{
@@ -774,6 +778,7 @@ namespace SyntaxSearch.Matchers
                     using System.Text;
                     using System.Xml;
                     using System.Collections.Immutable;
+                    using SyntaxSearch.Framework;
                     """);
 
                 string className = $"{commonBase.Name}Matcher";
@@ -950,6 +955,7 @@ namespace SyntaxSearch.Matchers
                         }
 
                         builderMethods.AppendLine($@"
+
                         public {matcherClassName} With{namedProp.Name}({matchType} matcher) 
                         {{ 
                             return new {matcherClassName}(this)
@@ -969,6 +975,11 @@ namespace SyntaxSearch.Matchers
                             }};
                         }}");
                         }
+                    }
+
+                    if (MethodGenerators.TryGetValue(namedProp.Name, out var generator))
+                    {
+                        generator.Generate(builderMethods, matcherClassName, namedProp);
                     }
                 }
             }
@@ -1118,7 +1129,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Xml;
-using System.Collections.Immutable;");
+using System.Collections.Immutable;
+using SyntaxSearch.Framework;
+");
 
             GenerateMatcherClass($"{kind.Name}Matcher", kind.Name,  classType, fields, namedProperties, builder, classes, context);
 
