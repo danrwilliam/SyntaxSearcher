@@ -47,7 +47,20 @@ namespace SyntaxSearcher.Generators
     [HelperName("Modifiers")]
     sealed class ModifierHelper : IHelperMethodGenerator
     {
-        static readonly IReadOnlyList<string> Modifiers = ["Static", "Public", "Private", "Internal", "Protected", "Abstract", "ReadOnly", "Ref"];
+        static readonly IReadOnlyList<string> Modifiers =
+        [
+            "Static",
+            "Public",
+            "Private",
+            "Internal",
+            "Protected",
+            "Abstract",
+            "ReadOnly",
+            "Ref",
+            "File",
+            "Override",
+            "Virtual"
+        ];
 
         public void Generate(
             StringBuilder builderMethods,
